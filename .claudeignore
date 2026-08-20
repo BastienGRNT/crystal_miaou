@@ -1,0 +1,34 @@
+# Dépendances
+node_modules/
+
+# Build SvelteKit / Vite
+.svelte-kit/
+build/
+dist/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Lockfiles (bruit, jamais édités à la main)
+package-lock.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage / rapports de test
+coverage/
+
+# Données Docker / Postgres locales
+pgdata/
+
+# OS / éditeurs
+.DS_Store
+.vscode/
+
+# Assets binaires volumineux (images d'étiquettes uploadées en dev, modèles OCR)
+static/uploads/
+static/ocr-models/
+*.traineddata
