@@ -1,4 +1,4 @@
-# CLAUDE.md — NutriChat
+# CLAUDE.md — Crystal Miaou
 
 Application de gestion de la nutrition pour chats : suivi des apports alimentaires, calcul automatique
 des besoins nutritionnels recommandés, et alerte si les apports réels s'écartent des recommandations.
@@ -107,16 +107,53 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
 
 - **Profil chat** (`cat`) : nom, poids, âge, sexe, stérilisé ou non, niveau d'activité, conditions de
   santé pertinentes pour le calcul (gestation, croissance, surpoids...).
-- **Catalogue produits** (`product`) : nom, marque, type (croquettes/pâtée/friandise), valeurs
-  nutritionnelles pour 100g (calories, protéines, lipides, glucides, fibres, cendres, humidité...).
-- **Journal des repas** (`meal_entry`) : quantité d'un produit donnée à une date/heure.
+- **Catalogue produits** (`food`) : nom, marque, type (croquette/pâtée/friandise), valeurs
+  nutritionnelles pour 100g (calories, protéines, lipides, glucides, fibres, cendres, humidité...),
+  poids du paquet (`packageSizeG`, pâtée uniquement).
+- **Sélection active du chat** (`cat.activeCroquetteFoodId` / `activePateeFoodId` / `activeFriandiseFoodId`
+  + `friandiseQuantiteTotaleG`) : les aliments donnés "en ce moment" à ce chat. **Persistant**, modifiable
+  à tout moment depuis la home — jamais redemandé à chaque génération du menu du jour. Au moins pâtée ou
+  croquette doit être actif (jamais aucun des deux) ; la friandise est optionnelle.
+- **Routine** (`daily_plan` + `daily_plan_slot`) : le rythme des repas d'un chat — une heure + un type
+  d'aliment (croquette/pâtée/friandise) par créneau, **sans quantité stockée** (calculée chaque jour).
+  Une seule routine active à la fois par chat.
+- **Journal des repas** (`meal_entry`) : une ligne par créneau et par jour, générée automatiquement à
+  partir de la routine active dès que la page du jour est consultée sans entrées existantes (reset
+  quotidien implicite). Porte la quantité du jour (`quantityG`), un verrou (`locked`, vrai dès qu'on
+  ajuste le slider) et l'état "donné" (`validated` + `validatedByUserId` + `validatedAt`, pour
+  l'attribution multi-utilisateur — qui a coché quoi, quand).
 - **Moteur de calcul** (`lib/domain/*.calc.ts`) :
   - RER (Resting Energy Requirement) et DER (Daily Energy Requirement) selon poids, stérilisation,
-    niveau d'activité.
-  - Apports réels sur une journée à partir du journal des repas.
+    niveau d'activité (`nutrition.calc.ts`).
+  - Répartition du menu du jour (`repartition.calc.ts`) : voir section dédiée ci-dessous.
   - Comparaison apports réels vs recommandés (calories + macronutriments), avec statut
     déficit / conforme / excès.
   - Fonctions pures, testables unitairement, sans dépendance DB.
+
+## Répartition du menu du jour (`lib/domain/repartition.calc.ts`)
+
+Principe : l'utilisateur ne raisonne jamais en grammes ou en calories, seulement en "quels aliments"
+et "à quelle heure". Le moteur calcule tout le reste pour que la journée couvre exactement le DER —
+ni trop, ni trop peu — sauf choix explicite de l'utilisateur (avec avertissement).
+
+1. **Pâtée** : nombre de paquets entiers/jour calculé automatiquement (arrondi au plus proche du DER,
+   jamais 0 tant que la pâtée est active). C'est une contrainte dure — la pâtée ne se donne pas "en
+   vrac".
+2. **Friandise** : quantité totale/jour choisie par l'utilisateur (pas calculée — c'est un extra, pas
+   une variable nutritionnelle).
+3. **Croquette** : absorbe le budget calorique restant (DER − pâtée − friandise). Si ce budget est
+   négatif (pâtée/friandise dépassent déjà le DER), aucune croquette n'est ajoutée et un avertissement
+   est renvoyé — jamais de quantité négative.
+4. **Répartition entre créneaux d'un même type** : à parts égales entre les créneaux **non verrouillés**
+   de ce type ; un créneau verrouillé (ajusté via slider, ou coché "donné") garde sa quantité, jamais
+   recalculée. Le reste (total du type − somme des créneaux verrouillés) est réparti sur les créneaux
+   restants, en préservant la somme exacte (pas de dérive d'arrondi). Si le reste devient négatif ou si
+   tous les créneaux restants sont verrouillés sans couvrir le besoin, un avertissement est renvoyé au
+   lieu d'une valeur silencieusement fausse.
+5. **Persistance** : `calculerEtPersisterRepartitionJournaliere` (`repartition.service.ts`) recalcule et
+   **enregistre immédiatement** en base les quantités des créneaux non verrouillés à chaque appel de
+   `GET /api/repartition` — c'est ce qui rend les ajustements visibles par tout le foyer sans dépendre
+   d'un état local côté client.
 
 ## Scan d'étiquette (OCR local)
 
@@ -131,28 +168,16 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
 
 Voir [`README.md`](./README.md) pour la liste des scripts npm (dev, build, db:push, test...).
 
-## Design system
 
-Le projet dispose d'une maquette de référence créée avec Claude Design (via le MCP claude_design) :
+## Spécifications nutritionnelles
 
-- Import : Use the claude_design MCP (https://api.anthropic.com/v1/design/mcp, auth via /design-login)
-  to import this project: https://claude.ai/design/p/b011f7f1-8661-48a5-8405-15a789d5d93d?file=Ronron.dc.html
-- Fichier principal : `Ronron.dc.html`
-- Fichiers importés à lire aussi :
-    - `_ds/nocturne-44ed1c71-941e-4453-a520-53a33369890a/_ds_bundle.js`
-    - `_ds/nocturne-44ed1c71-941e-4453-a520-53a33369890a/styles.css`
-    - `support.js`
+Toute la logique de calcul nutritionnel (RER, DER, répartition entre aliments,
+validation des apports) est spécifiée dans `specs/nutrition-spec.md`.
 
-**Comment l'utiliser :** avant de créer ou modifier une UI, consulte cette maquette via le MCP claude_design
-pour en extraire le style (couleurs, typographie, espacements, style des composants — boutons, cards, inputs,
-navigation). Reproduis ce langage visuel dans toutes les pages de l'application, y compris celles qui n'existent
-pas encore dans la maquette.
+Ce fichier fait foi : avant d'écrire ou modifier une fonction dans `domain/*.calc.ts`
+liée à la nutrition, relis-le. Les formules, seuils, facteurs multiplicateurs et règles
+de garde-fou qu'il contient priment sur toute approximation ou valeur par défaut que tu
+pourrais choisir de ton propre chef.
 
-**Important — c'est une maquette exploratoire, pas une spec figée :**
-- Ne recopie jamais le texte, les libellés ou les micro-copies mot pour mot : la maquette peut contenir des
-  placeholders, un ton ou un vocabulaire provisoires. Adapte les textes au contexte réel de l'app (nutrition féline).
-- Les formulaires de la maquette peuvent être incomplets (champs manquants, validations absentes) : base-toi sur
-  les specs fonctionnelles données dans les prompts de développement pour la liste réelle des champs, pas sur ce
-  qui est visible dans le mock.
-- En cas de conflit entre le mock et une exigence fonctionnelle explicite (un prompt de dev, une règle métier),
-  la règle fonctionnelle l'emporte toujours ; seul le style visuel du mock fait foi.
+En cas d'ambiguïté ou de choix d'implémentation non tranché par la spec (ex: Option 1
+vs Option 2 de répartition), demande confirmation plutôt que de trancher seul.

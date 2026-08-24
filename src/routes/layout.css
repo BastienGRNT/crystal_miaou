@@ -1,1 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
 @import 'tailwindcss';
+
+@theme {
+	/* Base neutrals — charcoal chaud, pas un gris froid de SaaS générique */
+	--color-background: #16130f;
+	--color-foreground: #f2ece2;
+	--color-card: #1e1a15;
+	--color-card-foreground: #f2ece2;
+	--color-popover: #221d17;
+	--color-popover-foreground: #f2ece2;
+
+	--color-muted: #2a241d;
+	--color-muted-foreground: #a89c8a;
+
+	--color-border: #362f26;
+	--color-input: #362f26;
+	--color-ring: #e8935a;
+
+	/* Primaire : ambre/terracotta — chaleur, nourriture */
+	--color-primary: #e8935a;
+	--color-primary-foreground: #1a1208;
+	--color-primary-muted: color-mix(in srgb, #e8935a 16%, transparent);
+
+	/* Secondaire : teal — data, graphiques, contrepoint frais */
+	--color-secondary: #4fa89b;
+	--color-secondary-foreground: #0c1a17;
+	--color-secondary-muted: color-mix(in srgb, #4fa89b 16%, transparent);
+
+	--color-accent: var(--color-primary);
+	--color-accent-foreground: var(--color-primary-foreground);
+
+	--color-success: #7fb069;
+	--color-success-muted: color-mix(in srgb, #7fb069 16%, transparent);
+	--color-warning: #e0b04a;
+	--color-warning-muted: color-mix(in srgb, #e0b04a 16%, transparent);
+	--color-destructive: #d9695f;
+	--color-destructive-foreground: #1a0f0d;
+	--color-destructive-muted: color-mix(in srgb, #d9695f 16%, transparent);
+
+	/* Alias historiques encore référencés le temps de la migration des composants */
+	--color-bg: var(--color-background);
+	--color-surface: var(--color-card);
+	--color-text: var(--color-foreground);
+	--color-divider: var(--color-border);
+	--color-danger: var(--color-destructive);
+
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 16px;
+	--radius-xl: 22px;
+	--radius-full: 999px;
+
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+	--shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+	--shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+	--shadow-glow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 40%, transparent), 0 0 24px -4px color-mix(in srgb, var(--color-primary) 45%, transparent);
+
+	--font-heading: 'Manrope', 'Inter', system-ui, sans-serif;
+	--font-body: 'Inter', system-ui, sans-serif;
+}
+
+body {
+	background:
+		radial-gradient(ellipse 900px 500px at 15% -10%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent),
+		radial-gradient(ellipse 700px 500px at 100% 0%, color-mix(in srgb, var(--color-secondary) 8%, transparent), transparent),
+		var(--color-background);
+	background-attachment: fixed;
+	color: var(--color-foreground);
+	font-family: var(--font-body);
+	margin: 0;
+	-webkit-font-smoothing: antialiased;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--font-heading);
+	font-weight: 700;
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+	margin: 0 0 0.35em;
+	color: var(--color-foreground);
+}
+@layer base {
+	a {
+		color: var(--color-primary);
+		text-underline-offset: 3px;
+	}
+}
+:focus {
+	outline: none;
+}
+:focus-visible {
+	outline: 2px solid var(--color-ring);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+::selection {
+	background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--color-border);
+	border-radius: 999px;
+	border: 2px solid var(--color-background);
+}
+::-webkit-scrollbar-thumb:hover {
+	background: var(--color-muted-foreground);
+}

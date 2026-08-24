@@ -16,7 +16,9 @@
 		"db:push": "drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"setup:ocr": "node scripts/setup-ocr.mjs",
+		"db:recompute-em": "node scripts/recompute-em-estimates.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.7",
@@ -35,6 +37,8 @@
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
-		"better-auth": "^1.7.1"
+		"@lucide/svelte": "^1.33.0",
+		"better-auth": "^1.7.1",
+		"tesseract.js": "^7.0.0"
 	}
 }

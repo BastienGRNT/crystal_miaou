@@ -1,4 +1,4 @@
-# NutriChat
+# Crystal Miaou
 
 Application de gestion de la nutrition pour chats : suivi des apports alimentaires, calcul automatique des besoins nutritionnels recommandés, et alerte en cas d'écart avec les recommandations.
 
@@ -41,6 +41,19 @@ Voir [`CLAUDE.md`](./CLAUDE.md) pour l'architecture détaillée, les conventions
    npm run dev -- --open
    ```
 
+## OCR (scan d'étiquette)
+
+Le scan d'étiquette (page Aliments) tourne entièrement en local via Tesseract.js. Les données de
+langue (français + anglais) ne sont pas committées dans le repo ; téléchargez-les une fois :
+
+```sh
+npm run setup:ocr
+```
+
+Ce script a besoin d'une connexion internet (téléchargement dans `static/tessdata/`), mais l'app
+elle-même n'effectue ensuite aucun appel réseau pour l'OCR. À relancer après un clone ou dans le
+pipeline de déploiement — pas nécessaire si `static/tessdata/` est déjà peuplé.
+
 ## Scripts utiles
 
 | Script               | Description                                      |
@@ -55,6 +68,7 @@ Voir [`CLAUDE.md`](./CLAUDE.md) pour l'architecture détaillée, les conventions
 | `npm run db:generate` | Génère une migration Drizzle à partir du schéma    |
 | `npm run db:migrate`  | Applique les migrations générées                   |
 | `npm run db:studio`   | Ouvre Drizzle Studio                               |
+| `npm run setup:ocr`   | Télécharge les données de langue OCR (une fois)    |
 
 ## Stack
 
