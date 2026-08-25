@@ -19,6 +19,14 @@ RUN npm run build
 
 FROM node:20-alpine
 WORKDIR /app
+
+# Alpine (musl) n'embarque pas tzdata par défaut : sans lui, TZ est ignoré et le process reste en UTC.
+# L'app est mono-foyer (France) — les horaires de routine ("08:00" saisi par l'utilisateur) doivent
+# être interprétés en heure française, sinon `consumedAt` (repartition.service.ts, setHours) est stocké
+# décalé de 1h ou 2h (CET/CEST) par rapport à ce que le foyer voit dans l'UI.
+RUN apk add --no-cache tzdata
+ENV TZ=Europe/Paris
+
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
