@@ -172,15 +172,27 @@ export function calculerPoidsGapCroquette(slots: SlotEtat[]): Map<string, number
 	);
 	if (avecHeure.length === 0) return poids;
 
-	const tries = [...avecHeure].sort((a, b) => a.heureMinutes - b.heureMinutes);
+	// Heures DISTINCTES seulement : deux créneaux à la même heure (ex: pâtée et croquette toutes les
+	// deux à 8h) ne doivent pas se voir l'un l'autre comme "le repas suivant" — sinon l'écart brut vaut 0,
+	// et 0 tombait auparavant dans le même cas que "aucun autre horaire dans la journée", ce qui gonflait
+	// ce créneau à un poids de 24h pleines (bug observé : 30g à 8h alors qu'une pâtée était donnée en même
+	// temps, contre 3-11g sur les autres créneaux). Le prochain repas réel est celui de l'heure suivante
+	// STRICTEMENT différente, quel que soit son type.
+	const heuresDistinctes = [...new Set(avecHeure.map((s) => s.heureMinutes))].sort((a, b) => a - b);
 
-	tries.forEach((slot, i) => {
-		if (slot.foodType !== 'croquette' || slot.locked) return;
-		const suivant = tries[(i + 1) % tries.length];
-		const brut = ((suivant.heureMinutes - slot.heureMinutes) % MINUTES_PAR_JOUR + MINUTES_PAR_JOUR) % MINUTES_PAR_JOUR;
-		const gap = brut || MINUTES_PAR_JOUR;
+	for (const slot of avecHeure) {
+		if (slot.foodType !== 'croquette' || slot.locked) continue;
+
+		// Une seule heure dans toute la journée (tous les repas au même moment) : pas de "suivant" au
+		// sens propre, on retombe sur une journée complète.
+		let gap = MINUTES_PAR_JOUR;
+		if (heuresDistinctes.length > 1) {
+			const heureSuivante = heuresDistinctes.find((h) => h > slot.heureMinutes) ?? heuresDistinctes[0];
+			const brut = ((heureSuivante - slot.heureMinutes) % MINUTES_PAR_JOUR + MINUTES_PAR_JOUR) % MINUTES_PAR_JOUR;
+			gap = brut || MINUTES_PAR_JOUR;
+		}
 		poids.set(slot.id, dureeAttentePondereeMin(slot.heureMinutes, gap));
-	});
+	}
 
 	return poids;
 }

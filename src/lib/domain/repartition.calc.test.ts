@@ -94,6 +94,20 @@ describe('calculerPoidsGapCroquette', () => {
 		const slots: SlotEtat[] = [{ id: 'a', foodType: 'croquette', locked: false, quantiteActuelleG: 0 }];
 		expect(calculerPoidsGapCroquette(slots).size).toBe(0);
 	});
+
+	it('un autre repas à la MÊME heure ne doit pas être pris pour "le prochain repas" (régression : gap à 0 gonflé à 24h)', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'croq-8h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'patee-8h', foodType: 'patee', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 }, // même heure que la croquette
+			{ id: 'croq-13h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 13 * 60 }
+		];
+
+		const poids = calculerPoidsGapCroquette(slots);
+
+		// Le prochain repas réel pour croq-8h est croq-13h (5h plus tard), pas patee-8h (0 minute d'écart) :
+		// le poids doit rester du même ordre de grandeur que les autres créneaux, pas s'envoler à 24h.
+		expect(poids.get('croq-8h')).toBeCloseTo(300, 5); // 5h de jour = 300 min pondérées
+	});
 });
 
 describe('calculerRepartitionJournaliere', () => {
