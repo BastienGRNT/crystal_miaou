@@ -1,8 +1,11 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { updateCatFoodSelectionForUser, updateCatProfileForUser } from '$lib/server/services/cat.service';
+import {
+	updateCatDerAjustementForUser,
+	updateCatFoodSelectionForUser,
+	updateCatProfileForUser
+} from '$lib/server/services/cat.service';
 import {
 	CAT_ACTIVITY_LEVEL_VALUES,
-	CAT_DER_AJUSTEMENT_PCT_VALEURS,
 	CAT_SEX_VALUES,
 	CAT_SPECIAL_CONDITION_VALUES,
 	type CatFoodSelectionInput,
@@ -17,8 +20,7 @@ const PROFILE_FIELDS = [
 	'sterilized',
 	'activityLevel',
 	'hasOutdoorAccess',
-	'specialCondition',
-	'derAjustementPct'
+	'specialCondition'
 ];
 
 export const PATCH: RequestHandler = async ({ request, locals, params }) => {
@@ -27,6 +29,18 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 	}
 
 	const body = await request.json();
+
+	// Réglage rapide en un clic depuis la card du chat ("Mes chats") : séparé du reste du profil pour ne
+	// jamais repasser par toute la validation du formulaire "Modifier" pour ce seul champ.
+	if ('derAjustementPct' in body && Object.keys(body).length === 1) {
+		const result = await updateCatDerAjustementForUser(params.id, Number(body.derAjustementPct), locals.user.id);
+
+		if (!result.success) {
+			return json({ error: result.error }, { status: 400 });
+		}
+
+		return json({ cat: result.cat });
+	}
 
 	if (PROFILE_FIELDS.some((field) => field in body)) {
 		const input: CatProfileInput = {
@@ -41,10 +55,7 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 			hasOutdoorAccess: Boolean(body.hasOutdoorAccess),
 			specialCondition: CAT_SPECIAL_CONDITION_VALUES.includes(body.specialCondition)
 				? body.specialCondition
-				: 'aucune',
-			derAjustementPct: CAT_DER_AJUSTEMENT_PCT_VALEURS.includes(Number(body.derAjustementPct))
-				? Number(body.derAjustementPct)
-				: 0
+				: 'aucune'
 		};
 
 		const result = await updateCatProfileForUser(params.id, input, locals.user.id);

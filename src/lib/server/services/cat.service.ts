@@ -9,11 +9,13 @@ import {
 	listCatsForUser,
 	listMembersForCat,
 	removeCatMemberByMembershipId,
+	updateCatDerAjustementPct,
 	updateCatFoodSelection,
 	updateCatProfile
 } from '$lib/server/repositories/cat.repository';
 import { findFoodByIdForUser } from '$lib/server/repositories/food.repository';
 import {
+	CAT_DER_AJUSTEMENT_PCT_VALEURS,
 	isValidEmail,
 	resolveCatBirthDate,
 	validateCatFoodSelectionInput,
@@ -95,10 +97,34 @@ export async function updateCatProfileForUser(
 		sterilized: input.sterilized,
 		activityLevel: input.activityLevel,
 		hasOutdoorAccess: input.hasOutdoorAccess,
-		specialCondition: input.specialCondition,
-		derAjustementPct: input.derAjustementPct
+		specialCondition: input.specialCondition
 	});
 
+	return { success: true, cat: updated };
+}
+
+export interface UpdateCatDerAjustementResult {
+	success: boolean;
+	cat?: typeof cat.$inferSelect;
+	error?: string;
+}
+
+/** Réglage rapide, en un clic depuis la card du chat — pas de passage par la modale "Modifier". */
+export async function updateCatDerAjustementForUser(
+	catId: string,
+	derAjustementPct: number,
+	userId: string
+): Promise<UpdateCatDerAjustementResult> {
+	const isMember = await isCatMemberForUser(catId, userId);
+	if (!isMember) {
+		return { success: false, error: 'Chat introuvable.' };
+	}
+
+	if (!CAT_DER_AJUSTEMENT_PCT_VALEURS.includes(derAjustementPct)) {
+		return { success: false, error: 'Ajustement du DER invalide.' };
+	}
+
+	const updated = await updateCatDerAjustementPct(catId, derAjustementPct);
 	return { success: true, cat: updated };
 }
 

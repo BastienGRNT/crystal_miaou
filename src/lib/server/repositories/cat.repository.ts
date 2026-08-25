@@ -146,7 +146,6 @@ export interface UpdateCatProfileInput {
 	activityLevel: CatActivityLevel;
 	hasOutdoorAccess: boolean;
 	specialCondition: CatSpecialCondition;
-	derAjustementPct: number;
 }
 
 export async function updateCatProfile(catId: string, input: UpdateCatProfileInput) {
@@ -160,11 +159,17 @@ export async function updateCatProfile(catId: string, input: UpdateCatProfileInp
 			sterilized: input.sterilized,
 			activityLevel: input.activityLevel,
 			hasOutdoorAccess: input.hasOutdoorAccess,
-			specialCondition: input.specialCondition,
-			derAjustementPct: input.derAjustementPct
+			specialCondition: input.specialCondition
 		})
 		.where(eq(cat.id, catId))
 		.returning();
+	return updated;
+}
+
+/** Ajustement manuel du DER (%), modifiable en un clic depuis la card du chat sur "Mes chats" — volontairement
+ * séparé du reste du profil (pas de passage par la modale "Modifier") pour rester un réglage rapide. */
+export async function updateCatDerAjustementPct(catId: string, derAjustementPct: number) {
+	const [updated] = await db.update(cat).set({ derAjustementPct }).where(eq(cat.id, catId)).returning();
 	return updated;
 }
 

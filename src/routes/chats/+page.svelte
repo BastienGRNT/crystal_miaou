@@ -87,7 +87,6 @@
 	let activityLevel = $state<CatActivityLevel>('modere');
 	let hasOutdoorAccess = $state(false);
 	let specialCondition = $state<CatSpecialCondition>('aucune');
-	let derAjustementPct = $state(0);
 
 	let errors = $state<Partial<Record<keyof CatProfileInput, string>>>({});
 	let submitError = $state<string | null>(null);
@@ -95,6 +94,36 @@
 
 	let weightModalCatId = $state<string | null>(null);
 	let householdModalCatId = $state<string | null>(null);
+
+	let derAjustementSavingCatId = $state<string | null>(null);
+	let derAjustementErrorCatId = $state<string | null>(null);
+
+	function derAjustementLabel(value: number): string {
+		if (value === 0) return 'Normal';
+		return `${value > 0 ? '+' : ''}${value}%`;
+	}
+
+	/** Réglage rapide en un clic depuis la card — pas de modale, pas de "Enregistrer" à confirmer, en
+	 * ligne avec le suivi de poids décrit dans /comprendre (§5) qui est déjà un ajustement manuel ponctuel. */
+	async function setDerAjustement(catId: string, value: number) {
+		derAjustementSavingCatId = catId;
+		derAjustementErrorCatId = null;
+
+		const response = await fetch(`/api/cats/${catId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ derAjustementPct: value })
+		});
+
+		derAjustementSavingCatId = null;
+
+		if (!response.ok) {
+			derAjustementErrorCatId = catId;
+			return;
+		}
+
+		await invalidateAll();
+	}
 
 	function openEditModal(cat: CatRecord) {
 		editingCatId = cat.id;
@@ -106,7 +135,6 @@
 		activityLevel = cat.activityLevel;
 		hasOutdoorAccess = cat.hasOutdoorAccess;
 		specialCondition = cat.specialCondition;
-		derAjustementPct = cat.derAjustementPct;
 		errors = {};
 		submitError = null;
 		showModal = true;
@@ -130,8 +158,7 @@
 			sterilized,
 			activityLevel,
 			hasOutdoorAccess,
-			specialCondition,
-			derAjustementPct
+			specialCondition
 		};
 
 		const validation = validateCatProfileInput(input);
@@ -190,8 +217,24 @@
 					{#if cat.specialCondition !== 'aucune'}
 						<Badge variant="warning">{conditionLabels[cat.specialCondition]}</Badge>
 					{/if}
-					{#if cat.derAjustementPct !== 0}
-						<Badge variant="outline">Besoin ajusté {cat.derAjustementPct > 0 ? '+' : ''}{cat.derAjustementPct}%</Badge>
+				</div>
+
+				<div class="flex flex-col gap-1.5">
+					<p class="text-xs font-medium text-muted-foreground">Besoin ajusté (après suivi de poids)</p>
+					<div class="flex flex-wrap gap-1.5">
+						{#each CAT_DER_AJUSTEMENT_PCT_VALEURS as value (value)}
+							<Button
+								variant={cat.derAjustementPct === value ? 'primary' : 'outline'}
+								size="sm"
+								disabled={derAjustementSavingCatId === cat.id}
+								onclick={() => setDerAjustement(cat.id, value)}
+							>
+								{derAjustementLabel(value)}
+							</Button>
+						{/each}
+					</div>
+					{#if derAjustementErrorCatId === cat.id}
+						<p class="text-xs text-destructive">Impossible d'enregistrer l'ajustement, réessayez.</p>
 					{/if}
 				</div>
 
@@ -259,21 +302,6 @@
 					{/each}
 				</Select>
 			</FormField>
-
-			<div class="flex flex-col gap-1">
-				<FormField label="Ajustement manuel du besoin (DER)" for="derAjustementPct" error={errors.derAjustementPct}>
-					<Select id="derAjustementPct" bind:value={derAjustementPct}>
-						{#each CAT_DER_AJUSTEMENT_PCT_VALEURS as value (value)}
-							<option {value}>{value === 0 ? 'Aucun (par défaut)' : `${value > 0 ? '+' : ''}${value}%`}</option>
-						{/each}
-					</Select>
-				</FormField>
-				<p class="text-xs text-muted-foreground">
-					À utiliser après quelques semaines de suivi de poids (onglet "Suivi de poids") si la
-					tendance ne va pas dans le sens souhaité — jamais l'app qui décide seule, toujours vous
-					(idéalement avec l'avis de votre vétérinaire) qui choisissez ce correctif.
-				</p>
-			</div>
 
 			{#if submitError}<Alert variant="danger">{submitError}</Alert>{/if}
 

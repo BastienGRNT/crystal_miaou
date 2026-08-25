@@ -98,7 +98,6 @@ export interface CatProfileInput {
 	activityLevel: CatActivityLevel;
 	hasOutdoorAccess: boolean;
 	specialCondition: CatSpecialCondition;
-	derAjustementPct: number;
 }
 
 export interface CatProfileValidationResult {
@@ -131,10 +130,6 @@ export function validateCatProfileInput(input: CatProfileInput): CatProfileValid
 
 	if (!CAT_SPECIAL_CONDITION_VALUES.includes(input.specialCondition)) {
 		errors.specialCondition = 'Condition particulière invalide.';
-	}
-
-	if (!CAT_DER_AJUSTEMENT_PCT_VALEURS.includes(input.derAjustementPct)) {
-		errors.derAjustementPct = 'Ajustement du DER invalide.';
 	}
 
 	return { valid: Object.keys(errors).length === 0, errors };
