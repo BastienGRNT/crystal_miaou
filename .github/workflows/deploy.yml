@@ -1,0 +1,33 @@
+name: Deploy Crystal Miaou
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Créer le fichier .env (Sécurité)
+        run: |
+          cat <<EOF > .env
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+          ORIGIN=${{ secrets.ORIGIN }}
+          EOF
+
+      - name: Lancer le déploiement Docker
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+      - name: Exécuter les migrations Drizzle
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T app sh -c "npx drizzle-kit migrate"
+
+      - name: Nettoyage des anciennes images
+        run: docker image prune -f
