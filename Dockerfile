@@ -7,6 +7,11 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npx svelte-kit sync
+
+# Valeur factice : le build SvelteKit importe le module db (postgres-js) pour l'analyse SSR sans
+# jamais se connecter réellement. La vraie valeur est injectée au runtime par docker-compose.
+ARG DATABASE_URL=postgres://build:build@localhost:5432/build
+ENV DATABASE_URL=$DATABASE_URL
 RUN npm run build
 
 FROM node:20-alpine
