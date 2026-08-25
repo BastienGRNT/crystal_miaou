@@ -3,9 +3,17 @@ const HEURE_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export type DailyPlanSlotFoodType = 'croquette' | 'patee' | 'friandise';
 const FOOD_TYPES_VALIDES: DailyPlanSlotFoodType[] = ['croquette', 'patee', 'friandise'];
 
+export type DailyPlanSlotDistributionMode = 'gamelle' | 'distributeur_automatique' | 'gamelle_ludique';
+const DISTRIBUTION_MODES_VALIDES: DailyPlanSlotDistributionMode[] = [
+	'gamelle',
+	'distributeur_automatique',
+	'gamelle_ludique'
+];
+
 export interface DailyPlanSlotInput {
 	timeOfDay: string;
 	foodType: DailyPlanSlotFoodType;
+	distributionMode: DailyPlanSlotDistributionMode;
 }
 
 export interface DailyPlanInput {
@@ -50,25 +58,15 @@ export function validateDailyPlanInput(input: DailyPlanInput): DailyPlanValidati
 			slotError.foodType = "Choisissez l'aliment donné à ce créneau.";
 		}
 
+		if (!DISTRIBUTION_MODES_VALIDES.includes(slot.distributionMode)) {
+			slotError.distributionMode = 'Choisissez le mode de distribution de ce créneau.';
+		}
+
 		return slotError;
 	});
 
 	if (slotErrors.some((slotError) => Object.keys(slotError).length > 0)) {
 		errors.slotErrors = slotErrors;
-	}
-
-	if (input.slots.length > 0 && !errors.slotErrors) {
-		const heuresVues = new Set<string>();
-		const heuresEnDoublon = new Set<string>();
-		for (const slot of input.slots) {
-			if (heuresVues.has(slot.timeOfDay)) {
-				heuresEnDoublon.add(slot.timeOfDay);
-			}
-			heuresVues.add(slot.timeOfDay);
-		}
-		if (heuresEnDoublon.size > 0) {
-			errors.slots = `Deux créneaux ne peuvent pas avoir la même heure (${[...heuresEnDoublon].join(', ')}).`;
-		}
 	}
 
 	return { valid: Object.keys(errors).length === 0, errors };

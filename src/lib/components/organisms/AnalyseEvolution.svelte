@@ -80,7 +80,7 @@
 			<h3 class="text-[17px] leading-tight">Apport calorique quotidien vs besoin (DER)</h3>
 		{/snippet}
 
-		<div class="flex h-40 items-end gap-1">
+		<div class="flex h-40 items-stretch gap-1">
 			{#each analyse.jours as jour (jour.date)}
 				<div class="group relative flex flex-1 flex-col items-center justify-end" title={formatDateTooltip(jour)}>
 					<div

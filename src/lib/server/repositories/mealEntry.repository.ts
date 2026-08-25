@@ -9,6 +9,10 @@ export interface CreateMealEntryInput {
 	consumedAt: Date;
 	recordedByUserId: string;
 	sourceDailyPlanSlotId?: string | null;
+	/** Coché "donné" dès la génération : réservé aux créneaux distribués par un distributeur automatique
+	 * (specs foyer — la croquette part toute seule, pas besoin d'action manuelle, juste de pouvoir
+	 * décocher si ça n'a pas fonctionné). Faux par défaut pour tout le reste (gamelle/gamelle ludique). */
+	validated?: boolean;
 }
 
 export async function createMealEntry(input: CreateMealEntryInput) {
@@ -21,7 +25,9 @@ export async function createMealEntry(input: CreateMealEntryInput) {
 			quantityG: input.quantityG === null ? null : input.quantityG.toString(),
 			consumedAt: input.consumedAt,
 			recordedByUserId: input.recordedByUserId,
-			sourceDailyPlanSlotId: input.sourceDailyPlanSlotId ?? null
+			sourceDailyPlanSlotId: input.sourceDailyPlanSlotId ?? null,
+			validated: input.validated ?? false,
+			locked: input.validated ?? false
 		})
 		.returning();
 
@@ -41,7 +47,9 @@ export async function createMealEntries(inputs: CreateMealEntryInput[]) {
 				quantityG: input.quantityG === null ? null : input.quantityG.toString(),
 				consumedAt: input.consumedAt,
 				recordedByUserId: input.recordedByUserId,
-				sourceDailyPlanSlotId: input.sourceDailyPlanSlotId ?? null
+				sourceDailyPlanSlotId: input.sourceDailyPlanSlotId ?? null,
+				validated: input.validated ?? false,
+				locked: input.validated ?? false
 			}))
 		)
 		.returning();

@@ -1,0 +1,2 @@
+CREATE TYPE "public"."distribution_mode" AS ENUM('gamelle', 'distributeur_automatique', 'gamelle_ludique');--> statement-breakpoint
+ALTER TABLE "daily_plan_slot" ADD COLUMN "distribution_mode" "distribution_mode" DEFAULT 'gamelle' NOT NULL;

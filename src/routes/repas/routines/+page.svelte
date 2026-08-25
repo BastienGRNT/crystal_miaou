@@ -20,11 +20,18 @@
 	import Clock from '@lucide/svelte/icons/clock';
 
 	type FoodType = 'croquette' | 'patee' | 'friandise';
+	type DistributionMode = 'gamelle' | 'distributeur_automatique' | 'gamelle_ludique';
 
 	const foodTypeLabels: Record<FoodType, string> = {
 		croquette: 'Croquette',
 		patee: 'Pâtée',
 		friandise: 'Friandise'
+	};
+
+	const distributionModeLabels: Record<DistributionMode, string> = {
+		gamelle: 'Gamelle',
+		distributeur_automatique: 'Distributeur automatique',
+		gamelle_ludique: 'Gamelle ludique'
 	};
 
 	interface CatOption {
@@ -36,6 +43,7 @@
 		id: string;
 		timeOfDay: string;
 		foodType: FoodType;
+		distributionMode: DistributionMode;
 	}
 
 	interface DailyPlanRecord {
@@ -55,6 +63,7 @@
 	interface SlotDraft {
 		timeOfDay: string;
 		foodType: FoodType;
+		distributionMode: DistributionMode;
 	}
 
 	let showModal = $state(false);
@@ -68,7 +77,8 @@
 	function defaultSlots(count: number): SlotDraft[] {
 		return Array.from({ length: count }, (_, i) => ({
 			timeOfDay: heureParDefaut(i, count),
-			foodType: 'croquette' as FoodType
+			foodType: 'croquette' as FoodType,
+			distributionMode: 'gamelle' as DistributionMode
 		}));
 	}
 
@@ -104,7 +114,8 @@
 		name = plan.name;
 		slots = plan.slots.map((slot) => ({
 			timeOfDay: slot.timeOfDay,
-			foodType: slot.foodType
+			foodType: slot.foodType,
+			distributionMode: slot.distributionMode
 		}));
 		errors = {};
 		submitError = null;
@@ -118,7 +129,11 @@
 	function addSlot() {
 		slots = [
 			...slots,
-			{ timeOfDay: heureParDefaut(slots.length, slots.length + 1), foodType: 'croquette' }
+			{
+				timeOfDay: heureParDefaut(slots.length, slots.length + 1),
+				foodType: 'croquette',
+				distributionMode: 'gamelle'
+			}
 		];
 	}
 
@@ -137,7 +152,8 @@
 			name,
 			slots: slots.map((slot) => ({
 				timeOfDay: slot.timeOfDay,
-				foodType: slot.foodType
+				foodType: slot.foodType,
+				distributionMode: slot.distributionMode
 			}))
 		};
 
@@ -224,6 +240,7 @@
 							<p class="flex items-center gap-1.5 text-sm text-muted-foreground">
 								<Clock class="size-3.5" />
 								<strong class="font-heading text-foreground">{slot.timeOfDay}</strong> — {foodTypeLabels[slot.foodType]}
+								<span class="text-xs">({distributionModeLabels[slot.distributionMode]})</span>
 							</p>
 						{/each}
 					</div>
@@ -269,6 +286,18 @@
 								<option value="croquette">Croquette</option>
 								<option value="patee">Pâtée</option>
 								<option value="friandise">Friandise</option>
+							</Select>
+						</FormField>
+
+						<FormField
+							label="Mode de distribution"
+							for={`slot-distribution-${i}`}
+							error={errors.slotErrors?.[i]?.distributionMode}
+						>
+							<Select id={`slot-distribution-${i}`} bind:value={slot.distributionMode}>
+								<option value="gamelle">Gamelle</option>
+								<option value="distributeur_automatique">Distributeur automatique</option>
+								<option value="gamelle_ludique">Gamelle ludique</option>
 							</Select>
 						</FormField>
 					</div>

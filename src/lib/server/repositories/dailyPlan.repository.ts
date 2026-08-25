@@ -44,6 +44,7 @@ export async function createDailyPlanWithSlots(input: DailyPlanInput, ownerUserI
 					dailyPlanId: createdPlan.id,
 					timeOfDay: slot.timeOfDay,
 					foodType: slot.foodType,
+					distributionMode: slot.distributionMode,
 					position
 				}))
 			);
@@ -70,6 +71,7 @@ export async function updateDailyPlanWithSlots(id: string, input: DailyPlanInput
 					dailyPlanId: id,
 					timeOfDay: slot.timeOfDay,
 					foodType: slot.foodType,
+					distributionMode: slot.distributionMode,
 					position
 				}))
 			);

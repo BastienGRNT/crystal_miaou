@@ -126,6 +126,8 @@ export function calculerGlucidesParAliment(
 	return [...parAliment.values()].sort((a, b) => b.pctMatiereSeche - a.pctMatiereSeche);
 }
 
+export type DistributionMode = 'gamelle' | 'distributeur_automatique' | 'gamelle_ludique';
+
 export interface RepasRepartition {
 	id: string;
 	consumedAt: string;
@@ -136,6 +138,9 @@ export interface RepasRepartition {
 	validated: boolean;
 	validatedBy: { id: string; name: string } | null;
 	validatedAt: string | null;
+	/** Mode de distribution du créneau source (routine) — permet à l'UI de différencier "donné par le
+	 * distributeur automatique" (coché d'office) de "donné à la main" (coché par un membre du foyer). */
+	distributionMode: DistributionMode;
 }
 
 export interface RepartitionResultatOk {
@@ -224,6 +229,10 @@ export async function calculerEtPersisterRepartitionJournaliere(
 
 	const targetDate = new Date(date);
 	let mealEntries = await listMealEntriesForCatOnDate(catId, targetDate);
+	/** Créneaux distributeur automatique générés à l'instant : coché "donné" d'office (quantiteActuelleG
+	 * à 0, aucune quantité réelle encore), donc traités comme non verrouillés pour CE calcul uniquement —
+	 * sinon ils recevraient 0g pour toujours au lieu de la quantité calculée. */
+	let freshlyGeneratedValidatedIds = new Set<string>();
 
 	if (mealEntries.length === 0) {
 		const foodParType: Record<RepartitionFoodType, { id: string } | null> = {
@@ -251,11 +260,15 @@ export async function calculerEtPersisterRepartitionJournaliere(
 				quantityG: 0,
 				consumedAt,
 				recordedByUserId: userId,
-				sourceDailyPlanSlotId: slot.id
+				sourceDailyPlanSlotId: slot.id,
+				// Un distributeur automatique donne le repas tout seul à l'heure prévue : le créneau est
+				// coché "donné" d'office, il suffit de décocher si ça n'a pas fonctionné (specs foyer).
+				validated: slot.distributionMode === 'distributeur_automatique'
 			};
 		});
 
-		await createMealEntries(entriesToCreate);
+		const created = await createMealEntries(entriesToCreate);
+		freshlyGeneratedValidatedIds = new Set(created.filter((entry) => entry.validated).map((entry) => entry.id));
 		mealEntries = await listMealEntriesForCatOnDate(catId, targetDate);
 	}
 
@@ -266,7 +279,7 @@ export async function calculerEtPersisterRepartitionJournaliere(
 	const slots: SlotEtat[] = mealEntries.map((entry) => ({
 		id: entry.id,
 		foodType: entry.food.type as RepartitionFoodType,
-		locked: entry.locked || entry.validated,
+		locked: (entry.locked || entry.validated) && !freshlyGeneratedValidatedIds.has(entry.id),
 		quantiteActuelleG: Number(entry.quantityG ?? 0)
 	}));
 
@@ -290,7 +303,7 @@ export async function calculerEtPersisterRepartitionJournaliere(
 	const quantiteParId = new Map(resultat.slots.map((s) => [s.id, s.quantiteG]));
 
 	const aPersister = mealEntries
-		.filter((entry) => !(entry.locked || entry.validated))
+		.filter((entry) => !(entry.locked || entry.validated) || freshlyGeneratedValidatedIds.has(entry.id))
 		.map((entry) => ({ id: entry.id, quantityG: quantiteParId.get(entry.id) ?? 0 }));
 	await updateMealEntryQuantities(aPersister);
 
@@ -308,7 +321,8 @@ export async function calculerEtPersisterRepartitionJournaliere(
 		locked: entry.locked,
 		validated: entry.validated,
 		validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
-		validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null
+		validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null,
+		distributionMode: (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode
 	}));
 
 	const rationCalculee = agregerRation(

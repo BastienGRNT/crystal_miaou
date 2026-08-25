@@ -74,7 +74,7 @@
 		{@const active = isActive(item.href)}
 		<a
 			href={item.href}
-			class="flex flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium no-underline transition-colors {active
+			class="flex flex-1 flex-col items-center gap-0.5 px-0.5 py-2 text-[10px] font-medium whitespace-nowrap no-underline transition-colors {active
 				? 'text-primary'
 				: 'text-muted-foreground'}"
 		>

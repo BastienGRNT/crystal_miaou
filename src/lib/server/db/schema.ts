@@ -334,6 +334,12 @@ export const dailyPlan = pgTable(
 	(table) => [index('daily_plan_catId_idx').on(table.catId)]
 );
 
+export const distributionMode = pgEnum('distribution_mode', [
+	'gamelle',
+	'distributeur_automatique',
+	'gamelle_ludique'
+]);
+
 export const dailyPlanSlot = pgTable(
 	'daily_plan_slot',
 	{
@@ -341,12 +347,15 @@ export const dailyPlanSlot = pgTable(
 		dailyPlanId: text('daily_plan_id')
 			.notNull()
 			.references(() => dailyPlan.id, { onDelete: 'cascade' }),
-		// Heure du créneau, format 'HH:MM'.
+		// Heure du créneau, format 'HH:MM'. Plusieurs créneaux peuvent partager la même heure
+		// (ex. gamelle + distributeur automatique en simultané) : différenciés par leur mode de
+		// distribution, jamais fusionnés.
 		timeOfDay: text('time_of_day').notNull(),
 		// Type d'aliment fixe pour ce créneau (un seul aliment par créneau, assigné dans la routine).
 		// La quantité n'est jamais fixée ici : elle est calculée chaque jour (répartition égale par
 		// défaut entre les créneaux du même type, cf. domain/repartition.calc.ts).
 		foodType: foodType('food_type').notNull().default('croquette'),
+		distributionMode: distributionMode('distribution_mode').notNull().default('gamelle'),
 		position: integer('position').notNull(),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')

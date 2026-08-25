@@ -3,7 +3,11 @@ import {
 	createDailyPlanForUser,
 	listDailyPlansForCatUser
 } from '$lib/server/services/dailyPlan.service';
-import type { DailyPlanInput, DailyPlanSlotFoodType } from '$lib/domain/dailyPlan.calc';
+import type {
+	DailyPlanInput,
+	DailyPlanSlotDistributionMode,
+	DailyPlanSlotFoodType
+} from '$lib/domain/dailyPlan.calc';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -38,7 +42,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					const s = slot as Record<string, unknown>;
 					return {
 						timeOfDay: typeof s.timeOfDay === 'string' ? s.timeOfDay : '',
-						foodType: s.foodType as DailyPlanSlotFoodType
+						foodType: s.foodType as DailyPlanSlotFoodType,
+						distributionMode: s.distributionMode as DailyPlanSlotDistributionMode
 					};
 				})
 			: []

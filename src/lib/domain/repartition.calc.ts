@@ -18,6 +18,12 @@ export type RepartitionFoodType = 'croquette' | 'patee' | 'friandise';
 
 const TOLERANCE_G = 0.5;
 
+/** Écart entre le total réel du jour et le DER, en fraction du DER, au-delà duquel on rééquilibre
+ * automatiquement plutôt que de se contenter d'un avertissement : un ajustement manuel isolé ne doit
+ * pas laisser la journée dériver franchement (trop ou pas assez) sans réaction du système. En-dessous
+ * de ce seuil, un petit écart volontaire est toléré sans y toucher. */
+const SEUIL_REEQUILIBRAGE_RATIO = 0.1;
+
 /** Part par défaut du budget calorique restant (après friandise) allouée à la pâtée quand croquette
  * ET pâtée sont actives simultanément — 50/50, ajustable ensuite par l'utilisateur via le slider. */
 const RATIO_PATEE_QUAND_CROQUETTE_ACTIVE = 0.5;
@@ -168,6 +174,46 @@ function distribuerType(
 	return { quantites, avertissement: null };
 }
 
+/** Réduit (ou augmente) proportionnellement la quantité des `slots` fournis pour absorber
+ * `ecartKcalACorriger` (positif = trop de kcal à retirer, négatif = kcal manquantes à ajouter),
+ * jamais en dessous de `planchG` (ex: le demi-paquet minimum tant que la pâtée est active) ni de 0.
+ * Renvoie l'écart kcal qui n'a pas pu être absorbé (0 si tout a été compensé), pour enchaîner sur un
+ * autre groupe de créneaux si besoin. Ne modifie jamais un créneau verrouillé (ni un créneau déjà
+ * "donné", qui est toujours reçu ici avec `locked: true`) : seul l'utilisateur peut revenir sur un
+ * choix explicite, le système ne fait que redistribuer la marge disponible autour. */
+function appliquerCorrectionProportionnelle(
+	slots: SlotEtat[],
+	quantitesParId: Map<string, number>,
+	kcal100g: number,
+	ecartKcalACorriger: number,
+	options?: { uniteAlignementG?: number; planchG?: number }
+): number {
+	if (slots.length === 0 || kcal100g <= 0 || Math.abs(ecartKcalACorriger) <= TOLERANCE_G) {
+		return ecartKcalACorriger;
+	}
+
+	const grammesActuels = slots.reduce((somme, s) => somme + (quantitesParId.get(s.id) ?? 0), 0);
+	if (grammesActuels <= TOLERANCE_G) return ecartKcalACorriger;
+
+	const planchG = options?.planchG ?? 0;
+	const grammesEcart = (ecartKcalACorriger / kcal100g) * 100;
+	const grammesCibles = Math.max(planchG, grammesActuels - grammesEcart);
+	const facteur = grammesCibles / grammesActuels;
+
+	for (const slot of slots) {
+		const actuelle = quantitesParId.get(slot.id) ?? 0;
+		let nouvelle = actuelle * facteur;
+		if (options?.uniteAlignementG) {
+			nouvelle = Math.round(nouvelle / options.uniteAlignementG) * options.uniteAlignementG;
+		}
+		quantitesParId.set(slot.id, arrondirGrammes(Math.max(0, nouvelle)));
+	}
+
+	const grammesAppliques = grammesActuels - grammesCibles;
+	const kcalAppliquee = (grammesAppliques / 100) * kcal100g;
+	return arrondirGrammes(ecartKcalACorriger - kcalAppliquee);
+}
+
 const LABELS_TYPE: Record<RepartitionFoodType, string> = {
 	croquette: 'croquette',
 	patee: 'pâtée',
@@ -255,6 +301,51 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 		);
 		for (const [id, quantite] of quantites) quantitesParId.set(id, quantite);
 		if (avertissement) avertissements.push(avertissement);
+	}
+
+	// Rééquilibrage automatique : un ajustement manuel (créneau verrouillé) peut faire dériver le total
+	// du jour loin du DER au-delà de ce que la répartition par type peut absorber seule (ex: créneau
+	// bloqué à une grosse valeur). Si l'écart dépasse ±10% du DER, on répartit l'excès/le manque sur les
+	// créneaux NON verrouillés restants — croquette en priorité (levier continu, sans contrainte de
+	// conditionnement), puis pâtée en dernier recours (par demi-paquet, jamais sous le demi-paquet
+	// minimum). Les créneaux verrouillés ou déjà "donnés" ne sont jamais touchés : seul l'utilisateur
+	// peut revenir sur un choix explicite.
+	const totalKcalJour = input.slots.reduce((somme, s) => {
+		const kcal100g =
+			s.foodType === 'croquette' ? input.croquette?.kcal100g : s.foodType === 'patee' ? input.patee?.kcal100g : input.friandise?.kcal100g;
+		return somme + (kcal100g ? ((quantitesParId.get(s.id) ?? 0) / 100) * kcal100g : 0);
+	}, 0);
+	const seuilKcal = input.der * SEUIL_REEQUILIBRAGE_RATIO;
+	const ecartInitialKcal = totalKcalJour - input.der;
+
+	if (Math.abs(ecartInitialKcal) > seuilKcal) {
+		let ecartRestant = ecartInitialKcal;
+
+		if (input.croquette) {
+			const croquettesLibres = input.slots.filter((s) => s.foodType === 'croquette' && !s.locked);
+			ecartRestant = appliquerCorrectionProportionnelle(croquettesLibres, quantitesParId, input.croquette.kcal100g, ecartRestant);
+		}
+
+		if (Math.abs(ecartRestant) > TOLERANCE_G && input.patee) {
+			const pateesLibres = input.slots.filter((s) => s.foodType === 'patee' && !s.locked);
+			const demiPaquetG = input.patee.packageSizeG / 2;
+			ecartRestant = appliquerCorrectionProportionnelle(pateesLibres, quantitesParId, input.patee.kcal100g, ecartRestant, {
+				uniteAlignementG: demiPaquetG,
+				planchG: demiPaquetG
+			});
+		}
+
+		if (Math.abs(ecartInitialKcal - ecartRestant) > TOLERANCE_G) {
+			avertissements.push(
+				`Cet ajustement manuel écartait la journée du besoin de ${Math.round(Math.abs(ecartInitialKcal))} kcal — les créneaux non verrouillés restants ont été réajustés automatiquement pour recoller au besoin du jour (${Math.round(input.der)} kcal).`
+			);
+		}
+
+		if (Math.abs(ecartRestant) > seuilKcal) {
+			avertissements.push(
+				`Même après réajustement automatique, la journée reste écartée du besoin de ${Math.round(Math.abs(ecartRestant))} kcal : pas assez de créneaux non verrouillés pour compenser entièrement. Déverrouillez-en un ou réinitialisez la journée.`
+			);
+		}
 	}
 
 	return {

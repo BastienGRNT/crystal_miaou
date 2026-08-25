@@ -6,6 +6,7 @@ import type { RepartitionFoodType } from '$lib/domain/repartition.calc';
 import {
 	calculerFiabiliteParAliment,
 	calculerGlucidesParAliment,
+	type DistributionMode,
 	type RationResume
 } from '$lib/server/services/repartition.service';
 
@@ -18,6 +19,7 @@ export interface DailyLogEntry {
 	validated: boolean;
 	validatedBy: { id: string; name: string } | null;
 	validatedAt: string | null;
+	distributionMode: DistributionMode;
 }
 
 export interface DailyLogResultatOk {
@@ -88,7 +90,8 @@ export async function obtenirJournalJourPourUtilisateur(
 		quantiteG: Number(entry.quantityG ?? 0),
 		validated: entry.validated,
 		validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
-		validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null
+		validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null,
+		distributionMode: (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode
 	}));
 
 	return {

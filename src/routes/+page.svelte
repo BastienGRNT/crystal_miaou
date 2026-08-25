@@ -9,6 +9,7 @@
 	import DailyMealSchedule, {
 		type RepartitionOkResponse
 	} from '$lib/components/organisms/DailyMealSchedule.svelte';
+	import RationDetails from '$lib/components/organisms/RationDetails.svelte';
 	import DailyLogView, { type DailyLogOkResponse } from '$lib/components/organisms/DailyLogView.svelte';
 	import PawPrint from '@lucide/svelte/icons/paw-print';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -86,7 +87,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-2xl px-4 py-8 md:py-10">
+<div class="mx-auto max-w-2xl px-4 py-8 md:max-w-5xl md:py-10">
 	<div class="mb-6 flex items-center gap-3">
 		<span class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-glow">
 			<PawPrint class="size-5.5" />
@@ -148,31 +149,41 @@
 								<Button href="/repas/routines" size="sm">Configurer une routine</Button>
 							{/snippet}
 						</EmptyState>
+						<FoodSelection cat={data.activeCat} foods={data.foods} dailyPlans={data.dailyPlans} />
 					{:else if data.isToday && !hasActiveFood}
 						<EmptyState
 							icon={Utensils}
 							title="Aucun aliment actif"
 							description="Choisissez au moins une pâtée ou une croquette ci-dessous pour que l'app calcule les quantités du jour."
 						/>
-					{:else if data.isToday}
-						{#if data.repartitionError}
-							<Alert variant="danger">{data.repartitionError}</Alert>
-						{:else if data.repartition}
-							<DailyMealSchedule
-								repartition={data.repartition}
-								catId={data.activeCatId}
-								catName={data.activeCat.name}
-								date={data.date}
-								onchange={invalidateAll}
-							/>
-						{/if}
-					{:else if data.dailyLogError}
-						<Alert variant="danger">{data.dailyLogError}</Alert>
-					{:else if data.dailyLog}
-						<DailyLogView log={data.dailyLog} />
-					{/if}
+						<FoodSelection cat={data.activeCat} foods={data.foods} dailyPlans={data.dailyPlans} />
+					{:else}
+						<div class="flex flex-col gap-4">
+							{#if data.isToday}
+								{#if data.repartitionError}
+									<Alert variant="danger">{data.repartitionError}</Alert>
+								{:else if data.repartition}
+									<DailyMealSchedule
+										repartition={data.repartition}
+										catId={data.activeCatId}
+										catName={data.activeCat.name}
+										date={data.date}
+										onchange={invalidateAll}
+									/>
+								{/if}
+							{:else if data.dailyLogError}
+								<Alert variant="danger">{data.dailyLogError}</Alert>
+							{:else if data.dailyLog}
+								<DailyLogView log={data.dailyLog} />
+							{/if}
 
-					<FoodSelection cat={data.activeCat} foods={data.foods} dailyPlans={data.dailyPlans} />
+							<FoodSelection cat={data.activeCat} foods={data.foods} dailyPlans={data.dailyPlans} />
+						</div>
+
+						{#if data.isToday && data.repartition}
+							<RationDetails repartition={data.repartition} catId={data.activeCatId} onchange={invalidateAll} />
+						{/if}
+					{/if}
 				</div>
 			{/key}
 		{/if}
