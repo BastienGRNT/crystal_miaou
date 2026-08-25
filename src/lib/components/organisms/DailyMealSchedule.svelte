@@ -36,6 +36,7 @@
 		foodType: FoodType;
 		food: { id: string; name: string; brand: string; packageSizeG: number | null };
 		quantiteG: number;
+		kcal: number;
 		locked: boolean;
 		validated: boolean;
 		validatedBy: { id: string; name: string } | null;
@@ -210,6 +211,35 @@
 	/** Prochain repas non coché de la journée : c'est la seule ligne qui intéresse vraiment
 	 * l'utilisateur quand il ouvre l'app en cuisine. */
 	const prochainRepas = $derived(repartition.repas.find((r) => !r.validated) ?? null);
+
+	interface GroupeHoraire {
+		consumedAt: string;
+		repasList: RepasRepartition[];
+		kcalTotal: number;
+		pctDER: number;
+	}
+
+	/** Regroupe les créneaux qui tombent exactement à la même heure (ex: pâtée + croquette à 8h) sous un
+	 * même point de la timeline — on raisonne "à 8h, il se passe ça", pas une liste plate de lignes. */
+	const groupesHoraires = $derived.by<GroupeHoraire[]>(() => {
+		const parHeure = new Map<string, RepasRepartition[]>();
+		for (const repas of repartition.repas) {
+			const liste = parHeure.get(repas.consumedAt) ?? [];
+			liste.push(repas);
+			parHeure.set(repas.consumedAt, liste);
+		}
+		return [...parHeure.entries()]
+			.sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+			.map(([consumedAt, repasList]) => {
+				const kcalTotal = repasList.reduce((somme, r) => somme + r.kcal, 0);
+				return {
+					consumedAt,
+					repasList,
+					kcalTotal,
+					pctDER: repartition.der > 0 ? Math.round((kcalTotal / repartition.der) * 100) : 0
+				};
+			});
+	});
 </script>
 
 <RationScoreCard score={repartition.ration.score} {catName} />
@@ -243,77 +273,110 @@
 
 	{#if resetError}<Alert variant="danger">{resetError}</Alert>{/if}
 
-	<div class="flex flex-col gap-2">
-		{#each repartition.repas as repas (repas.id)}
-			{@const Icon = foodTypeIcon[repas.foodType]}
-			<div
-				class="flex flex-col gap-2 rounded-lg border px-3.5 py-3 transition-colors {repas.validated
-					? 'border-success/30 bg-success-muted/40'
-					: 'border-border bg-muted/30'}"
-			>
-				<div class="flex items-center gap-3">
+	<div class="flex flex-col">
+		{#each groupesHoraires as groupe, i (groupe.consumedAt)}
+			{@const tousValides = groupe.repasList.every((r) => r.validated)}
+			<div class="relative flex gap-3">
+				<div class="flex flex-col items-center">
 					<span
-						class="flex size-9 shrink-0 items-center justify-center rounded-lg {repas.validated
-							? 'bg-success text-background'
-							: 'bg-muted text-muted-foreground'}"
-					>
-						{#if repas.validated}<Check class="size-4.5" />{:else}<Icon class="size-4.5" />{/if}
-					</span>
-
-					<div class="flex min-w-0 flex-1 flex-col">
-						<span class="flex items-baseline gap-2">
-							<span class="font-heading text-sm font-semibold text-foreground">{formatHeure(repas.consumedAt)}</span>
-							<span class="font-heading text-sm font-bold text-primary">{formatQuantite(repas)}</span>
-						</span>
-						<span class="truncate text-xs text-muted-foreground">{repas.food.name} ({repas.food.brand})</span>
-					</div>
-
-					<Checkbox
-						checked={repas.validated}
-						disabled={pendingId === repas.id}
-						onchange={(e) => handleToggleValidated(repas, (e.target as HTMLInputElement).checked)}
-					>
-						{pendingId === repas.id ? '…' : labelDonne(repas)}
-					</Checkbox>
-				</div>
-
-				<div class="flex items-center justify-between gap-2">
-					{#if repas.validated && repas.validatedBy && repas.validatedAt}
-						<span class="text-xs text-muted-foreground">
-							coché par {repas.validatedBy.name} à {formatHoraireCoche(repas.validatedAt)}
-						</span>
-					{:else if repas.validated}
-						<span class="text-xs text-muted-foreground">Distribué automatiquement — décochez si ce n'est pas le cas</span>
-					{:else}
-						<span class="text-xs text-muted-foreground">
-							{repas.locked ? 'Quantité fixée à la main' : "Quantité calculée par l'app"}
-						</span>
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={() => (ajustementOuvert[repas.id] = !ajustementOuvert[repas.id])}
-						>
-							<SlidersHorizontal />
-							{ajustementOuvert[repas.id] ? 'Fermer' : 'Ajuster'}
-						</Button>
+						class="mt-1.5 flex size-3 shrink-0 rounded-full {tousValides
+							? 'bg-success'
+							: 'bg-primary'}"
+					></span>
+					{#if i < groupesHoraires.length - 1}
+						<span class="w-px flex-1 bg-border"></span>
 					{/if}
 				</div>
 
-				{#if ajustementOuvert[repas.id] && !repas.validated}
-					<Slider
-						valueLabel={formatQuantite(repas)}
-						min={0}
-						max={Math.max(repas.quantiteG * 2, 50)}
-						step={sliderStep(repas)}
-						value={sliderValue(repas)}
-						oninput={(v) => handleSliderInput(repas, v)}
-						onchange={(v) => handleSliderCommit(repas, v)}
-					/>
-					<p class="text-xs text-muted-foreground">
-						Ce créneau ne sera plus recalculé automatiquement tant que vous n'aurez pas réinitialisé la
-						journée.
-					</p>
-				{/if}
+				<div class="flex-1 pb-5">
+					<div class="mb-1.5 flex items-center justify-between gap-2">
+						<span class="font-heading text-sm font-semibold text-foreground">
+							{formatHeure(groupe.consumedAt)}
+						</span>
+						<span class="text-xs text-muted-foreground">{groupe.kcalTotal} kcal · {groupe.pctDER}% du DER</span>
+					</div>
+					<div class="mb-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+						<div
+							class="h-full rounded-full {tousValides ? 'bg-success' : 'bg-primary'}"
+							style="width: {Math.min(groupe.pctDER, 100)}%"
+						></div>
+					</div>
+
+					<div class="flex flex-col gap-2">
+						{#each groupe.repasList as repas (repas.id)}
+							{@const Icon = foodTypeIcon[repas.foodType]}
+							<div
+								class="flex flex-col gap-2 rounded-lg border px-3.5 py-3 transition-colors {repas.validated
+									? 'border-success/30 bg-success-muted/40'
+									: 'border-border bg-muted/30'}"
+							>
+								<div class="flex items-center gap-3">
+									<span
+										class="flex size-9 shrink-0 items-center justify-center rounded-lg {repas.validated
+											? 'bg-success text-background'
+											: 'bg-muted text-muted-foreground'}"
+									>
+										{#if repas.validated}<Check class="size-4.5" />{:else}<Icon class="size-4.5" />{/if}
+									</span>
+
+									<div class="flex min-w-0 flex-1 flex-col">
+										<span class="flex items-baseline gap-2">
+											<span class="font-heading text-sm font-bold text-primary">{formatQuantite(repas)}</span>
+											<span class="text-xs text-muted-foreground">{repas.kcal} kcal</span>
+										</span>
+										<span class="truncate text-xs text-muted-foreground">{repas.food.name} ({repas.food.brand})</span>
+									</div>
+
+									<Checkbox
+										checked={repas.validated}
+										disabled={pendingId === repas.id}
+										onchange={(e) => handleToggleValidated(repas, (e.target as HTMLInputElement).checked)}
+									>
+										{pendingId === repas.id ? '…' : labelDonne(repas)}
+									</Checkbox>
+								</div>
+
+								<div class="flex items-center justify-between gap-2">
+									{#if repas.validated && repas.validatedBy && repas.validatedAt}
+										<span class="text-xs text-muted-foreground">
+											coché par {repas.validatedBy.name} à {formatHoraireCoche(repas.validatedAt)}
+										</span>
+									{:else if repas.validated}
+										<span class="text-xs text-muted-foreground">Distribué automatiquement — décochez si ce n'est pas le cas</span>
+									{:else}
+										<span class="text-xs text-muted-foreground">
+											{repas.locked ? 'Quantité fixée à la main' : "Quantité calculée par l'app"}
+										</span>
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => (ajustementOuvert[repas.id] = !ajustementOuvert[repas.id])}
+										>
+											<SlidersHorizontal />
+											{ajustementOuvert[repas.id] ? 'Fermer' : 'Ajuster'}
+										</Button>
+									{/if}
+								</div>
+
+								{#if ajustementOuvert[repas.id] && !repas.validated}
+									<Slider
+										valueLabel={formatQuantite(repas)}
+										min={0}
+										max={Math.max(repas.quantiteG * 2, 50)}
+										step={sliderStep(repas)}
+										value={sliderValue(repas)}
+										oninput={(v) => handleSliderInput(repas, v)}
+										onchange={(v) => handleSliderCommit(repas, v)}
+									/>
+									<p class="text-xs text-muted-foreground">
+										Ce créneau ne sera plus recalculé automatiquement tant que vous n'aurez pas réinitialisé la
+										journée.
+									</p>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</div>
 			</div>
 		{/each}
 	</div>

@@ -134,6 +134,9 @@ export interface RepasRepartition {
 	foodType: RepartitionFoodType;
 	food: { id: string; name: string; brand: string; packageSizeG: number | null };
 	quantiteG: number;
+	/** Kcal apportées par ce créneau (quantiteG × emKcal100g du repas) — permet à l'UI d'afficher le
+	 * poids calorique de chaque créneau sans redupliquer la formule côté client. */
+	kcal: number;
 	locked: boolean;
 	validated: boolean;
 	validatedBy: { id: string; name: string } | null;
@@ -319,6 +322,7 @@ export async function calculerEtPersisterRepartitionJournaliere(
 			packageSizeG: entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG)
 		},
 		quantiteG: quantiteParId.get(entry.id) ?? 0,
+		kcal: Math.round(((quantiteParId.get(entry.id) ?? 0) * Number(entry.food.emKcal100g)) / 100),
 		locked: entry.locked,
 		validated: entry.validated,
 		validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
