@@ -8,10 +8,13 @@ RUN npm install
 COPY . .
 RUN npx svelte-kit sync
 
-# Valeur factice : le build SvelteKit importe le module db (postgres-js) pour l'analyse SSR sans
-# jamais se connecter réellement. La vraie valeur est injectée au runtime par docker-compose.
+# Valeurs factices : le build SvelteKit importe les modules db (postgres-js) et auth (Better Auth)
+# pour l'analyse SSR, sans jamais se connecter réellement ni servir de requête. Les vraies valeurs
+# sont injectées au runtime par docker-compose.
 ARG DATABASE_URL=postgres://build:build@localhost:5432/build
+ARG BETTER_AUTH_SECRET=build-time-placeholder-secret
 ENV DATABASE_URL=$DATABASE_URL
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 RUN npm run build
 
 FROM node:20-alpine
