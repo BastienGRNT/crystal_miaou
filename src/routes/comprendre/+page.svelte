@@ -275,16 +275,19 @@
 				jour.
 			</Alert>
 			<p class="text-sm text-muted-foreground">
-				Ceci dit, un calcul purement proportionnel peut, sur un créneau au gap très court, tomber à
-				quelques grammes — plus vraiment un repas (retour d'usage : une portion de 2.5g jugée inutile,
-				ni pour la satiété ni pour l'intérêt du chat). L'app impose donc un <strong>plancher de 6g</strong>
-				par créneau croquette non verrouillé : en dessous, la quantité est remontée à 6g et la
-				différence reprise sur les créneaux voisins qui ont de la marge — le total du jour ne change
-				jamais. Si la routine a trop de créneaux croquette pour le DER du jour (impossible de mettre 6g
-				partout même en reprenant sur les voisins), un avertissement le signale au lieu de forcer un
-				calcul intenable ; la meilleure réponse est alors de resserrer la routine (moins de créneaux
-				croquette, ou un créneau de plus pour combler un long trou plutôt que de compter sur un seul
-				gros repas suivi d'un creux).
+				Ceci dit, un calcul purement proportionnel a deux travers possibles : sur un créneau au gap très
+				court, tomber à quelques grammes — plus vraiment un repas (retour d'usage : une portion de 2.5g
+				jugée inutile, ni pour la satiété ni pour l'intérêt du chat) ; ou à l'inverse, sur un très long
+				trou, écraser tous les autres créneaux au point qu'un repas fasse 10 fois la taille d'un autre le
+				même jour ("effet montagnes russes" pointé par un retour d'usage). L'app impose donc deux
+				garde-fous par créneau croquette non verrouillé : un <strong>plancher de 6g</strong> (en dessous,
+				remonté à 6g) et un <strong>plafond à 2.5 fois le plus petit repas du jour</strong> (au-delà,
+				ramené à ce plafond) — dans les deux cas, la différence est reprise ou redonnée sur les créneaux
+				qui ont de la marge, le total du jour ne change jamais. Si la routine a trop de créneaux
+				croquette pour le DER du jour (impossible de mettre 6g partout même en reprenant sur les
+				voisins), un avertissement le signale au lieu de forcer un calcul intenable ; la meilleure
+				réponse est alors de resserrer la routine (moins de créneaux croquette, ou un créneau de plus
+				pour combler un long trou plutôt que de compter sur un seul gros repas suivi d'un creux).
 			</p>
 			<p class="text-xs text-muted-foreground">
 				Un créneau verrouillé (ajusté à la main via le slider, ou déjà coché "donné") garde toujours sa

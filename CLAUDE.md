@@ -165,12 +165,15 @@ ni trop, ni trop peu — sauf choix explicite de l'utilisateur (avec avertisseme
    croquette** : une demi-pâtée donnée à 8h fait directement baisser la portion de croquette du créneau
    de 8h (pas seulement le total du jour) — un créneau dont la pâtée couvre déjà tout l'objectif reçoit un
    poids de 0, jamais négatif. Nécessite l'heure du créneau (`heureMinutes`) ; sans elle, repli silencieux
-   sur un partage égal. **Plancher dur** : `PORTION_CROQUETTE_MIN_G` (6g, `repartition.calc.ts`) — un
-   créneau au gap très court ne descend jamais en dessous (`appliquerPlancherPortions`), la différence
-   étant reprise sur les créneaux qui ont de la marge plutôt que de laisser un reliquat de quelques
-   grammes qui n'est plus vraiment un repas. Si le budget du jour ne permet même pas 6g sur chacun des
-   créneaux croquette de la routine, un avertissement le signale plutôt que d'écraser silencieusement le
-   plancher.
+   sur un partage égal. **Plancher et plafond** (`repartition.calc.ts`) : `PORTION_CROQUETTE_MIN_G` (6g)
+   — un créneau au gap très court ne descend jamais en dessous — et `RATIO_ECART_MAX_CROQUETTE` (×2.5) —
+   le plus gros créneau du jour ne dépasse jamais 2.5 fois le plus petit, pour éviter l'effet "un gros
+   repas suivi d'une miette" (retour terrain). Les deux sont appliqués par `respecterPlancherEtPlafond` en
+   mélangeant progressivement la répartition pondérée avec un partage égal (jamais par écrêtage direct :
+   un plafond calculé trop bas par rapport au budget total peut rendre la contrainte mathématiquement
+   irréalisable sans perdre des kcal en route — le mélange, lui, préserve toujours la somme exacte). Si le
+   budget du jour ne permet même pas 6g sur chacun des créneaux croquette de la routine, un avertissement
+   le signale plutôt que d'écraser silencieusement le plancher.
 5. **Persistance** : `calculerEtPersisterRepartitionJournaliere` (`repartition.service.ts`) recalcule et
    **enregistre immédiatement** en base les quantités des créneaux non verrouillés à chaque appel de
    `GET /api/repartition` — c'est ce qui rend les ajustements visibles par tout le foyer sans dépendre

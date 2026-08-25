@@ -14,11 +14,12 @@
 // pondérée jusqu'au repas suivant × taux kcal/minute uniforme sur la journée, nuit atténuée) DONT ON
 // DÉDUIT les kcal déjà apportées au même horaire par la pâtée ou la friandise (`calculerPoidsGapCroquette`)
 // — une pâtée donnée à 8h fait directement baisser la portion de croquette du créneau de 8h, pas
-// seulement le total du jour. Cette pondération n'a en revanche aucune limite basse par elle-même : un
-// créneau au gap très court peut retomber à quelques grammes, ce qui n'est plus vraiment un repas — un
-// plancher dur de `PORTION_CROQUETTE_MIN_G` (6g) force donc chaque créneau non verrouillé à rester
-// au-dessus, la différence étant reprise sur les créneaux voisins qui ont de la marge
-// (`appliquerPlancherPortions`), jamais sur le total du jour qui reste inchangé. Un créneau verrouillé
+// seulement le total du jour. Cette pondération n'a en revanche aucune limite en soi : un créneau au gap
+// très court peut retomber à quelques grammes (plus vraiment un repas), et à l'inverse un très long trou
+// peut créer un écart démesuré avec les autres créneaux du jour. Deux garde-fous corrigent ça sans jamais
+// changer le total du jour (`respecterPlancherEtPlafond`) : un plancher dur (`PORTION_CROQUETTE_MIN_G`,
+// 6g) et un plafond relatif au plus petit créneau (`RATIO_ECART_MAX_CROQUETTE`, ×2.5) — la différence est
+// à chaque fois reprise/redonnée sur les créneaux voisins qui ont de la marge. Un créneau verrouillé
 // (ajusté manuellement ou déjà "donné") garde sa quantité, jamais recalculée.
 
 import { arrondirGrammes } from '$lib/domain/nutrition.calc';
@@ -40,10 +41,18 @@ const RATIO_PATEE_QUAND_CROQUETTE_ACTIVE = 0.5;
 /** En dessous de ce poids, une portion de croquette n'est plus vraiment un repas — juste un reliquat
  * d'arrondi (retour terrain : un créneau à 2.5g après un créneau à 24.5g le même jour, jugé "inutile,
  * ça sent le calcul plutôt qu'un vrai repas"). Sert de plancher dur à la répartition pondérée par gap
- * horaire (`appliquerPlancherPortions`) : jamais appliqué à un créneau verrouillé (l'utilisateur a déjà
+ * horaire (`respecterPlancherEtPlafond`) : jamais appliqué à un créneau verrouillé (l'utilisateur a déjà
  * tranché), ni à la pâtée (quantifiée par paquet, déjà bien au-dessus) ni à la friandise (fixée par
  * l'utilisateur, pas calculée). */
 export const PORTION_CROQUETTE_MIN_G = 6;
+
+/** Le plus gros créneau croquette du jour ne dépasse jamais ce multiple du plus petit (plancher inclus).
+ * Retour terrain : un jour avec 24.5g sur un créneau et 2.5g sur un autre (×10) jugé "montagnes russes"
+ * pour la satiété — la pondération par gap horaire reste le principe (un long trou avant le prochain
+ * repas justifie une portion plus grosse), mais sans limite ça peut aller loin quand les écarts horaires
+ * sont très inégaux. ×2.5 : assez pour corriger les cas extrêmes sans revenir à un partage quasi égal
+ * (un plafond trop serré, ex. ×1.4, annulerait presque toute la pondération par attente). */
+const RATIO_ECART_MAX_CROQUETTE = 2.5;
 
 /** Divise un total en `nombreParts` parts égales (arrondies), en corrigeant la dernière part pour
  * que la somme reste exactement `totalG`. */
@@ -275,50 +284,52 @@ function repartirParPoids(totalG: number, poids: number[]): number[] {
 	return parts;
 }
 
-/** Redistribue `parts` pour qu'aucune ne descende sous `plancherG`, en reprenant la différence sur les
- * créneaux qui ont de la marge (au prorata de `poids`), sans jamais changer la somme totale. Procède par
- * vagues : fige au plancher tout créneau qui repasse en dessous, redistribue le reste sur les créneaux
- * encore libres, et recommence tant qu'un nouveau créneau franchit le seuil — converge en au plus
- * `parts.length` itérations. Si le budget total ne permet même pas `plancherG` par créneau (routine avec
- * trop de créneaux croquette pour un DER donné), la répartition d'origine est renvoyée inchangée —
- * impossible à satisfaire, signalé séparément par l'appelant plutôt que de forcer une valeur arbitraire. */
-function appliquerPlancherPortions(parts: number[], poids: number[], plancherG: number): number[] {
-	const n = parts.length;
-	if (n === 0) return parts;
+/** `weighted` respecte-t-il à la fois le plancher `plancherG` et le plafond `ratioMax` (plus gros ÷ plus
+ * petit) ? Un plancher nul ou négatif dans `weighted` (ne devrait pas arriver — `arrondirGrammes` ne
+ * produit pas de négatif ici) est traité comme un échec du plancher, jamais comme "ratio infini ignoré". */
+function respecteLesGardeFous(valeurs: number[], plancherG: number, ratioMax: number): boolean {
+	const min = Math.min(...valeurs);
+	const max = Math.max(...valeurs);
+	if (min < plancherG - TOLERANCE_G) return false;
+	return min <= 0 ? false : max / min <= ratioMax + 1e-6;
+}
 
-	const total = parts.reduce((somme, p) => somme + p, 0);
-	if (n * plancherG > total + TOLERANCE_G) return parts;
+/** Rapproche `weighted` (répartition pondérée par gap horaire) d'un partage égal `equal` jusqu'à ce que
+ * le plancher et le plafond soient respectés, en gardant le mélange le plus proche possible de la
+ * pondération d'origine. Les deux vecteurs ont la même somme (`weighted` et `equal` répartissent le même
+ * total) donc tout mélange convexe des deux la préserve aussi — pas de risque de "perdre" des kcal en
+ * chemin, contrairement à une correction par écrêtage/fixation qui peut se retrouver sans créneau libre
+ * pour absorber le reste quand le plafond est très serré par rapport au budget total (ex: 3 créneaux pour
+ * 80g avec un plafond calculé à 15g — mathématiquement impossible à répartir sans dépasser ce plafond).
+ * `equal` respecte toujours les deux contraintes dès lors que le plancher est atteignable
+ * (`n × plancherG ≤ total`) : à la limite (t=1) le mélange y retombe donc toujours, ce n'est jamais un
+ * cul-de-sac. Si le plancher n'est PAS atteignable (budget du jour trop petit pour le nombre de
+ * créneaux), `equal` lui-même ne le respecte pas non plus — la fonction renvoie alors le meilleur repli
+ * possible (`equal`, le plus proche d'un partage juste) plutôt qu'un résultat aberrant ; ce cas est
+ * signalé séparément par un avertissement côté appelant (`calculerRepartitionJournaliere`). */
+function respecterPlancherEtPlafond(weighted: number[], equal: number[], plancherG: number, ratioMax: number): number[] {
+	const n = weighted.length;
+	if (n <= 1 || respecteLesGardeFous(weighted, plancherG, ratioMax)) return weighted;
 
-	const resultat = [...parts];
-	const fige = new Array(n).fill(false);
+	const total = weighted.reduce((somme, v) => somme + v, 0);
+	const PAS_T = 0.05;
 
-	for (let iteration = 0; iteration < n; iteration++) {
-		let nouveauFige = false;
-		for (let i = 0; i < n; i++) {
-			if (!fige[i] && resultat[i] < plancherG - TOLERANCE_G) {
-				fige[i] = true;
-				resultat[i] = plancherG;
-				nouveauFige = true;
-			}
+	for (let t = PAS_T; t < 1; t += PAS_T) {
+		const melange = weighted.map((w, i) => arrondirGrammes(w * (1 - t) + equal[i] * t));
+		if (!respecteLesGardeFous(melange, plancherG, ratioMax)) continue;
+
+		// Corrige l'écart d'arrondi (arrondi au 0.5g près sur chaque élément) sur la plus grosse part pour
+		// garder la somme exacte — un écrêtage éventuel de cette part serait négligeable (0.5g maximum).
+		const ecart = arrondirGrammes(total - melange.reduce((somme, v) => somme + v, 0));
+		if (Math.abs(ecart) > TOLERANCE_G) {
+			let idxMax = 0;
+			for (let i = 1; i < n; i++) if (melange[i] > melange[idxMax]) idxMax = i;
+			melange[idxMax] = arrondirGrammes(melange[idxMax] + ecart);
 		}
-		if (!nouveauFige) break;
-
-		const indicesLibres: number[] = [];
-		for (let i = 0; i < n; i++) if (!fige[i]) indicesLibres.push(i);
-
-		const totalFige = resultat.reduce((somme, p, i) => somme + (fige[i] ? p : 0), 0);
-		const reste = arrondirGrammes(total - totalFige);
-		const poidsLibres = indicesLibres.map((i) => poids[i] ?? 0);
-		const nouvellesParts = poidsLibres.some((p) => p > 0)
-			? repartirParPoids(reste, poidsLibres)
-			: repartirPaquetEnParts(reste, indicesLibres.length);
-
-		indicesLibres.forEach((i, k) => {
-			resultat[i] = nouvellesParts[k];
-		});
+		return melange;
 	}
 
-	return resultat;
+	return equal;
 }
 
 /** Répartit `totalG` sur les créneaux non verrouillés d'un même type, en préservant la quantité des
@@ -327,7 +338,8 @@ function appliquerPlancherPortions(parts: number[], poids: number[], plancherG: 
  * fourni (pâtée : demi-paquet), force chaque part non verrouillée à être un multiple exact de cette
  * unité plutôt qu'une part au gramme près. `poidsParId`, quand fourni et non vide (croquette), répartit
  * au prorata de ce poids au lieu de parts égales. `plancherG`, quand fourni (croquette), garantit qu'aucune
- * part non verrouillée ne descend en dessous — cf. `appliquerPlancherPortions`. */
+ * part non verrouillée ne descend en dessous ni ne dépasse `RATIO_ECART_MAX_CROQUETTE` fois la plus
+ * petite — cf. `respecterPlancherEtPlafond`. */
 function distribuerType(
 	totalG: number,
 	slotsType: SlotEtat[],
@@ -382,7 +394,8 @@ function distribuerType(
 			? repartirParPoids(reste, poidsNonVerrouilles)
 			: repartirPaquetEnParts(reste, nonVerrouilles.length);
 	if (plancherG && plancherG > 0) {
-		parts = appliquerPlancherPortions(parts, poidsNonVerrouilles, plancherG);
+		const partsEgales = repartirPaquetEnParts(reste, nonVerrouilles.length);
+		parts = respecterPlancherEtPlafond(parts, partsEgales, plancherG, RATIO_ECART_MAX_CROQUETTE);
 	}
 	nonVerrouilles.forEach((s, i) => quantites.set(s.id, parts[i]));
 	return { quantites, avertissement: null };
@@ -515,7 +528,6 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 	// ne pas surcharger un créneau qui coïncide déjà avec un autre repas calorique (cf.
 	// `calculerPoidsGapCroquette`) — la croquette est calculée en dernier.
 	const quantitesParId = new Map<string, number>();
-	let poidsGapCroquette = new Map<string, number>();
 	for (const foodType of ['patee', 'friandise', 'croquette'] as const) {
 		const slotsType = input.slots.filter((s) => s.foodType === foodType);
 		if (slotsType.length === 0) continue;
@@ -528,8 +540,7 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 				friandise: input.friandise?.kcal100g,
 				croquette: input.croquette?.kcal100g
 			});
-			poidsGapCroquette = calculerPoidsGapCroquette(input.slots, input.der, kcalDejaDonneParHeure);
-			poidsParId = poidsGapCroquette;
+			poidsParId = calculerPoidsGapCroquette(input.slots, input.der, kcalDejaDonneParHeure);
 			plancherG = PORTION_CROQUETTE_MIN_G;
 		}
 
@@ -568,12 +579,19 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 			ecartRestant = appliquerCorrectionProportionnelle(croquettesLibres, quantitesParId, input.croquette.kcal100g, ecartRestant);
 
 			// Le lissage proportionnel ci-dessus applique le même facteur à tous les créneaux libres : ça
-			// peut repasser l'un d'eux sous le plancher d'une portion réelle. On le réapplique aussitôt,
-			// en reprenant sur les créneaux qui ont de la marge plutôt que de laisser un reliquat inutilisable.
+			// peut repasser l'un d'eux sous le plancher, ou au contraire creuser l'écart avec un autre bien
+			// au-dessus du plafond. On réapplique aussitôt les deux garde-fous, en reprenant/redonnant sur
+			// les créneaux qui ont de la marge plutôt que de laisser un résultat déséquilibré.
 			const idsCroquettesLibres = croquettesLibres.map((s) => s.id);
 			const partsActuelles = idsCroquettesLibres.map((id) => quantitesParId.get(id) ?? 0);
-			const poidsCroquettesLibres = idsCroquettesLibres.map((id) => poidsGapCroquette.get(id) ?? 0);
-			const partsAjustees = appliquerPlancherPortions(partsActuelles, poidsCroquettesLibres, PORTION_CROQUETTE_MIN_G);
+			const totalActuel = partsActuelles.reduce((somme, v) => somme + v, 0);
+			const partsEgales = repartirPaquetEnParts(totalActuel, idsCroquettesLibres.length);
+			const partsAjustees = respecterPlancherEtPlafond(
+				partsActuelles,
+				partsEgales,
+				PORTION_CROQUETTE_MIN_G,
+				RATIO_ECART_MAX_CROQUETTE
+			);
 			idsCroquettesLibres.forEach((id, i) => quantitesParId.set(id, partsAjustees[i]));
 		}
 

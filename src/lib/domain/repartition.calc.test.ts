@@ -228,6 +228,33 @@ describe('calculerRepartitionJournaliere', () => {
 		expect(total).toBeCloseTo(80, 0); // somme préservée malgré le plancher
 	});
 
+	it("le plus gros créneau croquette ne dépasse jamais ×2.5 le plus petit, somme du jour préservée", () => {
+		// Écarts horaires très inégaux (04:30/08:00/13:00/20:00/23:00, cf. cas remonté en prod) : sans
+		// plafond, le créneau de 13:00 (gap de 7h) pèse near 3.5× celui de 04:30 (gap de 1h) rien que par
+		// la pondération horaire brute.
+		const slots: SlotEtat[] = [
+			{ id: 'a', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 4 * 60 + 30 },
+			{ id: 'b', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'c', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 13 * 60 },
+			{ id: 'd', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 },
+			{ id: 'e', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 23 * 60 }
+		];
+
+		const resultat = calculerRepartitionJournaliere({
+			der: 1116, // taux kcal/minute = 1 : les grammes reflètent directement les minutes pondérées
+			croquette: { kcal100g: 100 },
+			patee: null,
+			friandise: null,
+			slots
+		});
+
+		const quantites = resultat.slots.map((s) => s.quantiteG);
+		const total = quantites.reduce((somme, q) => somme + q, 0);
+
+		expect(Math.max(...quantites) / Math.min(...quantites)).toBeLessThanOrEqual(2.5 + 1e-6);
+		expect(total).toBeCloseTo(1116, 0);
+	});
+
 	it('budget croquette insuffisant pour le plancher sur tous les créneaux : avertissement explicite', () => {
 		const slots: SlotEtat[] = Array.from({ length: 5 }, (_, i) => ({
 			id: `c${i}`,
