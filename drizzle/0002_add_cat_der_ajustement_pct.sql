@@ -1,0 +1,1 @@
+ALTER TABLE "cat" ADD COLUMN "der_ajustement_pct" integer DEFAULT 0 NOT NULL;

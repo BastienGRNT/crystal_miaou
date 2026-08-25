@@ -15,6 +15,13 @@
       "when": 1787681508589,
       "tag": "0001_clumsy_queen_noir",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787695953764,
+      "tag": "0002_add_cat_der_ajustement_pct",
+      "breakpoints": true
     }
   ]
 }
