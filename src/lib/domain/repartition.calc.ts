@@ -9,10 +9,13 @@
 // pour la journée est un ENTIER (jamais un demi ou un tiers de paquet — la pâtée coûte cher, on n'ouvre
 // pas un paquet de plus pour un écart marginal) ; une fois ce total figé, il est en revanche réparti
 // entre les créneaux au demi-paquet près (une pâtée ouverte se partage en deux repas sans problème). La
-// croquette absorbe ensuite le budget calorique qu'il reste réellement après la pâtée, répartie entre
-// ses créneaux non verrouillés au prorata du temps d'attente avant le repas suivant (nuit exclue, cf.
-// `calculerPoidsGapCroquette`) plutôt qu'à parts strictement égales. Un créneau verrouillé (ajusté
-// manuellement ou déjà "donné") garde sa quantité, jamais recalculée.
+// croquette absorbe ensuite le budget calorique qu'il reste réellement après la pâtée. Ce budget n'est
+// pas réparti à parts égales entre ses créneaux mais au prorata d'un objectif kcal par créneau (durée
+// pondérée jusqu'au repas suivant × taux kcal/minute uniforme sur la journée, nuit atténuée) DONT ON
+// DÉDUIT les kcal déjà apportées au même horaire par la pâtée ou la friandise (`calculerPoidsGapCroquette`)
+// — une pâtée donnée à 8h fait directement baisser la portion de croquette du créneau de 8h, pas
+// seulement le total du jour. Un créneau verrouillé (ajusté manuellement ou déjà "donné") garde sa
+// quantité, jamais recalculée.
 
 import { arrondirGrammes } from '$lib/domain/nutrition.calc';
 
@@ -158,14 +161,31 @@ function dureeAttentePondereeMin(debutMin: number, dureeMin: number): number {
 	return dureeMin - nuitMin * (1 - POIDS_MINUTE_NUIT);
 }
 
-/** Poids de chaque créneau croquette non verrouillé, proportionnel au temps d'attente jusqu'au repas
- * suivant (tous types confondus — un repas de pâtée nourrit le chat tout autant qu'une croquette) avec
- * les minutes nocturnes comptées à `POIDS_MINUTE_NUIT` (spec conversation : "si il va y avoir 6 à 7h
- * sans repas [...] proportionnellement"). Un créneau qui précède un long trou de la journée (ex: pas de
- * repas entre 8h et 15h) reçoit ainsi plus qu'un créneau suivi de près par le prochain, sans que la même
- * durée pendant la nuit ne produise le même effet. Renvoie une map vide si aucun créneau n'a d'heure
- * connue (`heureMinutes` absent) — le fallback vers un partage égal se fait côté appelant. */
-export function calculerPoidsGapCroquette(slots: SlotEtat[]): Map<string, number> {
+/** Durée pondérée totale d'une journée complète (24h) : les gaps entre créneaux, mis bout à bout sur
+ * un cycle de 24h, couvrent toujours exactement cette durée quel que soit le nombre ou le placement des
+ * créneaux — c'est le dénominateur du taux kcal/minute cible (cf. `calculerPoidsGapCroquette`). */
+const MINUTES_JOUR_PONDEREES = dureeAttentePondereeMin(0, MINUTES_PAR_JOUR);
+
+/** Poids de chaque créneau croquette non verrouillé = le déficit kcal entre l'objectif de ce créneau et
+ * ce qui lui est déjà apporté par la pâtée/la friandise/une croquette déjà verrouillée au même horaire.
+ *
+ * L'objectif d'un créneau est `durée pondérée jusqu'au repas suivant × taux kcal/minute`, le taux étant
+ * fixe sur la journée (`der / MINUTES_JOUR_PONDEREES`, minutes nocturnes comptées à `POIDS_MINUTE_NUIT`)
+ * — spec conversation : "pour une journée de 238kcal on vise 9kcal par heure [...] si il a 8h avant le
+ * prochain repas il lui faut 8h × 9kcal, pâtée et croquette comprises". Si une pâtée est donnée au même
+ * horaire qu'une croquette, ses kcal sont déduites de l'objectif AVANT de peser cette croquette : une
+ * demi-pâtée à 8h fait mécaniquement baisser la part de croquette de ce créneau, pas seulement le total
+ * du jour. Un créneau dont la pâtée/friandise couvre déjà tout l'objectif reçoit un poids de 0 —
+ * `repartirParPoids` (côté appelant) répartit alors le reste du budget sur les autres créneaux croquette
+ * sans jamais perdre de kcal, la pondération ne servant qu'à répartir un total déjà fixé ailleurs.
+ *
+ * Renvoie une map vide si aucun créneau n'a d'heure connue (`heureMinutes` absent) — le fallback vers un
+ * partage égal se fait côté appelant. */
+export function calculerPoidsGapCroquette(
+	slots: SlotEtat[],
+	der: number,
+	kcalDejaDonneParHeure: Map<number, number>
+): Map<string, number> {
 	const poids = new Map<string, number>();
 	const avecHeure = slots.filter(
 		(s): s is SlotEtat & { heureMinutes: number } => s.heureMinutes !== undefined
@@ -179,6 +199,7 @@ export function calculerPoidsGapCroquette(slots: SlotEtat[]): Map<string, number
 	// temps, contre 3-11g sur les autres créneaux). Le prochain repas réel est celui de l'heure suivante
 	// STRICTEMENT différente, quel que soit son type.
 	const heuresDistinctes = [...new Set(avecHeure.map((s) => s.heureMinutes))].sort((a, b) => a - b);
+	const tauxKcalParMinute = der / MINUTES_JOUR_PONDEREES;
 
 	for (const slot of avecHeure) {
 		if (slot.foodType !== 'croquette' || slot.locked) continue;
@@ -191,10 +212,38 @@ export function calculerPoidsGapCroquette(slots: SlotEtat[]): Map<string, number
 			const brut = ((heureSuivante - slot.heureMinutes) % MINUTES_PAR_JOUR + MINUTES_PAR_JOUR) % MINUTES_PAR_JOUR;
 			gap = brut || MINUTES_PAR_JOUR;
 		}
-		poids.set(slot.id, dureeAttentePondereeMin(slot.heureMinutes, gap));
+		const objectifKcal = dureeAttentePondereeMin(slot.heureMinutes, gap) * tauxKcalParMinute;
+		const dejaDonneKcal = kcalDejaDonneParHeure.get(slot.heureMinutes) ?? 0;
+		poids.set(slot.id, Math.max(0, objectifKcal - dejaDonneKcal));
 	}
 
 	return poids;
+}
+
+/** Kcal déjà apportées à chaque horaire du jour par la pâtée, la friandise, et toute croquette déjà
+ * verrouillée — sert de base à `calculerPoidsGapCroquette` pour ne pas surcharger un créneau croquette
+ * qui coïncide avec un autre repas déjà calorique. `quantitesConnues` doit déjà contenir les grammes
+ * pâtée/friandise du jour (calculés avant la croquette, cf. `calculerRepartitionJournaliere`). */
+function construireKcalDejaDonneParHeure(
+	slots: SlotEtat[],
+	quantitesConnues: Map<string, number>,
+	kcal100gParType: Partial<Record<RepartitionFoodType, number>>
+): Map<number, number> {
+	const kcalParHeure = new Map<number, number>();
+
+	for (const s of slots) {
+		if (s.heureMinutes === undefined) continue;
+		if (s.foodType === 'croquette' && !s.locked) continue;
+
+		const kcal100g = kcal100gParType[s.foodType];
+		if (!kcal100g) continue;
+
+		const grammes = quantitesConnues.get(s.id) ?? s.quantiteActuelleG;
+		const kcal = (grammes / 100) * kcal100g;
+		kcalParHeure.set(s.heureMinutes, (kcalParHeure.get(s.heureMinutes) ?? 0) + kcal);
+	}
+
+	return kcalParHeure;
 }
 
 /** Répartit `totalG` sur `poids.length` parts proportionnelles à `poids`, en préservant la somme exacte
@@ -392,22 +441,30 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 		? { patee: input.patee.packageSizeG / 2 }
 		: {};
 
-	const poidsGapCroquette = calculerPoidsGapCroquette(input.slots);
-	const poidsParType: Partial<Record<RepartitionFoodType, Map<string, number>>> = {
-		croquette: poidsGapCroquette
-	};
-
+	// Pâtée et friandise d'abord : la croquette a besoin de connaître leurs grammes par horaire pour
+	// ne pas surcharger un créneau qui coïncide déjà avec un autre repas calorique (cf.
+	// `calculerPoidsGapCroquette`) — la croquette est calculée en dernier.
 	const quantitesParId = new Map<string, number>();
-	for (const foodType of Object.keys(totauxParType) as RepartitionFoodType[]) {
+	for (const foodType of ['patee', 'friandise', 'croquette'] as const) {
 		const slotsType = input.slots.filter((s) => s.foodType === foodType);
 		if (slotsType.length === 0) continue;
+
+		let poidsParId: Map<string, number> | undefined;
+		if (foodType === 'croquette') {
+			const kcalDejaDonneParHeure = construireKcalDejaDonneParHeure(input.slots, quantitesParId, {
+				patee: input.patee?.kcal100g,
+				friandise: input.friandise?.kcal100g,
+				croquette: input.croquette?.kcal100g
+			});
+			poidsParId = calculerPoidsGapCroquette(input.slots, input.der, kcalDejaDonneParHeure);
+		}
 
 		const { quantites, avertissement } = distribuerType(
 			totauxParType[foodType],
 			slotsType,
 			LABELS_TYPE[foodType],
 			uniteAlignementParType[foodType],
-			poidsParType[foodType]
+			poidsParId
 		);
 		for (const [id, quantite] of quantites) quantitesParId.set(id, quantite);
 		if (avertissement) avertissements.push(avertissement);

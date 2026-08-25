@@ -152,12 +152,17 @@ ni trop, ni trop peu — sauf choix explicite de l'utilisateur (avec avertisseme
    restants, en préservant la somme exacte (pas de dérive d'arrondi). Si le reste devient négatif ou si
    tous les créneaux restants sont verrouillés sans couvrir le besoin, un avertissement est renvoyé au
    lieu d'une valeur silencieusement fausse. **Exception croquette** : la répartition n'est pas à parts
-   égales mais pondérée par l'attente jusqu'au repas suivant, tous types confondus
-   (`calculerPoidsGapCroquette`, `repartition.calc.ts`) — un créneau qui précède un long trou dans la
-   journée reçoit proportionnellement plus qu'un créneau suivi de près par le prochain repas, sauf la
-   nuit (22h-7h) où l'attente compte pour 40% de sa durée réelle : dormir longtemps sans manger est
-   normal pour le chat, ça ne doit pas gonfler artificiellement le repas du soir. Nécessite l'heure du
-   créneau (`heureMinutes`) ; sans elle, repli silencieux sur un partage égal.
+   égales mais au prorata d'un OBJECTIF KCAL par créneau (`calculerPoidsGapCroquette`,
+   `repartition.calc.ts`) = durée pondérée jusqu'au repas suivant (tous types confondus, nuit 22h-7h
+   comptée à 40% de sa durée réelle — dormir longtemps sans manger est normal pour le chat) × un taux
+   kcal/minute constant sur la journée (`DER / durée totale pondérée du jour`, invariant = 1116 minutes
+   pondérées quels que soient les horaires). Un créneau qui précède un long trou reçoit ainsi
+   proportionnellement plus qu'un créneau suivi de près par le prochain repas. **Les kcal déjà apportées
+   au même horaire par la pâtée ou la friandise sont déduites de cet objectif avant de peser la
+   croquette** : une demi-pâtée donnée à 8h fait directement baisser la portion de croquette du créneau
+   de 8h (pas seulement le total du jour) — un créneau dont la pâtée couvre déjà tout l'objectif reçoit un
+   poids de 0, jamais négatif. Nécessite l'heure du créneau (`heureMinutes`) ; sans elle, repli silencieux
+   sur un partage égal.
 5. **Persistance** : `calculerEtPersisterRepartitionJournaliere` (`repartition.service.ts`) recalcule et
    **enregistre immédiatement** en base les quantités des créneaux non verrouillés à chaque appel de
    `GET /api/repartition` — c'est ce qui rend les ajustements visibles par tout le foyer sans dépendre

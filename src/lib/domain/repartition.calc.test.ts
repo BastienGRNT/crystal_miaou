@@ -48,6 +48,12 @@ describe('arrondirAuDemiPaquet', () => {
 	});
 });
 
+// Avec ce DER, tauxKcalParMinute = der / MINUTES_JOUR_PONDEREES = 1116 / 1116 = 1 : le poids en kcal
+// est alors numériquement égal à la durée pondérée en minutes, ce qui permet de réutiliser les mêmes
+// nombres "en minutes" que si la fonction ne rendait qu'une durée (plus simple à lire dans les tests).
+const DER_TAUX_UNITAIRE = 1116;
+const AUCUN_KCAL_DEJA_DONNE = new Map<number, number>();
+
 describe('calculerPoidsGapCroquette', () => {
 	it('un créneau suivi de près par le prochain repas pèse moins qu\'un créneau qui précède un long trou', () => {
 		const slots: SlotEtat[] = [
@@ -56,7 +62,7 @@ describe('calculerPoidsGapCroquette', () => {
 			{ id: 'soir', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 } // 11h après midi
 		];
 
-		const poids = calculerPoidsGapCroquette(slots);
+		const poids = calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE);
 
 		expect(poids.get('matin')).toBeLessThan(poids.get('midi')!);
 		expect(poids.get('midi')).toBeGreaterThan(poids.get('soir')!);
@@ -72,8 +78,8 @@ describe('calculerPoidsGapCroquette', () => {
 			{ id: 'b', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 4 * 60 } // 7h plus tard, en pleine nuit
 		];
 
-		const poidsJour = calculerPoidsGapCroquette(slotsJour).get('a')!;
-		const poidsNuit = calculerPoidsGapCroquette(slotsNuit).get('a')!;
+		const poidsJour = calculerPoidsGapCroquette(slotsJour, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE).get('a')!;
+		const poidsNuit = calculerPoidsGapCroquette(slotsNuit, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE).get('a')!;
 
 		expect(poidsNuit).toBeLessThan(poidsJour);
 	});
@@ -84,7 +90,7 @@ describe('calculerPoidsGapCroquette', () => {
 			{ id: 'b', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 }
 		];
 
-		const poids = calculerPoidsGapCroquette(slots);
+		const poids = calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE);
 
 		expect(poids.has('a')).toBe(false);
 		expect(poids.has('b')).toBe(true);
@@ -92,7 +98,7 @@ describe('calculerPoidsGapCroquette', () => {
 
 	it('renvoie une map vide si aucun créneau n\'a d\'heure connue', () => {
 		const slots: SlotEtat[] = [{ id: 'a', foodType: 'croquette', locked: false, quantiteActuelleG: 0 }];
-		expect(calculerPoidsGapCroquette(slots).size).toBe(0);
+		expect(calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE).size).toBe(0);
 	});
 
 	it('un autre repas à la MÊME heure ne doit pas être pris pour "le prochain repas" (régression : gap à 0 gonflé à 24h)', () => {
@@ -102,11 +108,34 @@ describe('calculerPoidsGapCroquette', () => {
 			{ id: 'croq-13h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 13 * 60 }
 		];
 
-		const poids = calculerPoidsGapCroquette(slots);
+		const poids = calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE);
 
 		// Le prochain repas réel pour croq-8h est croq-13h (5h plus tard), pas patee-8h (0 minute d'écart) :
 		// le poids doit rester du même ordre de grandeur que les autres créneaux, pas s'envoler à 24h.
-		expect(poids.get('croq-8h')).toBeCloseTo(300, 5); // 5h de jour = 300 min pondérées
+		expect(poids.get('croq-8h')).toBeCloseTo(300, 5); // 5h de jour = 300 min pondérées (taux unitaire)
+	});
+
+	it('une pâtée donnée au même horaire réduit le poids de la croquette de ce créneau', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'croq-8h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'croq-13h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 13 * 60 }
+		];
+
+		const sansPatee = calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, AUCUN_KCAL_DEJA_DONNE).get('croq-8h')!;
+		const avecPatee = calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, new Map([[8 * 60, 100]])).get('croq-8h')!;
+
+		expect(avecPatee).toBeCloseTo(sansPatee - 100, 5);
+	});
+
+	it('une pâtée qui couvre déjà tout l\'objectif du créneau ramène son poids à 0, jamais négatif', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'croq-8h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'croq-13h', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 13 * 60 }
+		];
+
+		const poids = calculerPoidsGapCroquette(slots, DER_TAUX_UNITAIRE, new Map([[8 * 60, 10000]]));
+
+		expect(poids.get('croq-8h')).toBe(0);
 	});
 });
 
