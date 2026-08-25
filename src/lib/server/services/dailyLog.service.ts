@@ -58,7 +58,7 @@ export async function obtenirJournalJourPourUtilisateur(
 
 	const rer = calculerRER(Number(cat.weightKg));
 	const facteurDER = resoudreFacteurDER(deriveDERFactorProfileFromCat(cat, new Date(date)));
-	const der = calculerDER(rer, facteurDER);
+	const der = calculerDER(rer, facteurDER, Number(cat.derAjustementPct));
 
 	const rationCalculee = agregerRation(
 		mealEntries.map((entry) => ({

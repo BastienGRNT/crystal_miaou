@@ -146,6 +146,7 @@ export interface UpdateCatProfileInput {
 	activityLevel: CatActivityLevel;
 	hasOutdoorAccess: boolean;
 	specialCondition: CatSpecialCondition;
+	derAjustementPct: number;
 }
 
 export async function updateCatProfile(catId: string, input: UpdateCatProfileInput) {
@@ -159,7 +160,8 @@ export async function updateCatProfile(catId: string, input: UpdateCatProfileInp
 			sterilized: input.sterilized,
 			activityLevel: input.activityLevel,
 			hasOutdoorAccess: input.hasOutdoorAccess,
-			specialCondition: input.specialCondition
+			specialCondition: input.specialCondition,
+			derAjustementPct: input.derAjustementPct
 		})
 		.where(eq(cat.id, catId))
 		.returning();

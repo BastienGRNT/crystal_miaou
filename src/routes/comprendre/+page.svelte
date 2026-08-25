@@ -440,6 +440,14 @@
 				elle ne va pas dans le sens de l'objectif — jamais un ajustement automatique, c'est toujours
 				vous (et votre vétérinaire) qui décidez.
 			</p>
+			<p class="text-sm text-muted-foreground">
+				Pour appliquer ce correctif, direction <strong>Mes chats → Modifier → Ajustement manuel du
+				besoin (DER)</strong> : un menu à choix fermés (−10%, −5%, aucun, +5%, +10%) qui multiplie
+				directement le DER calculé. C'est une alternative plus directe à changer le poids ou le
+				niveau d'activité pour obtenir le même effet — mais gardez toujours une trace de la raison
+				dans votre suivi (silhouette, poids), ce correctif n'a de sens que basé sur une observation
+				réelle dans le temps, pas comme réglage par défaut.
+			</p>
 		</Card>
 
 		<Card>

@@ -15,8 +15,11 @@ export function calculerRER(poidsKg: number): number {
 	return 30 * poidsKg + 70;
 }
 
-export function calculerDER(rer: number, facteur: number): number {
-	return rer * facteur;
+/** `ajustementPct` : correction manuelle décidée après un suivi de poids (specs/nutrition-spec.md
+ * section 5, "on ajuste d'environ ±10% si besoin") — jamais déduite automatiquement d'une pesée par
+ * l'app, toujours choisie explicitement par l'utilisateur (`cat.derAjustementPct`, cf. cat.calc.ts). */
+export function calculerDER(rer: number, facteur: number, ajustementPct = 0): number {
+	return rer * facteur * (1 + ajustementPct / 100);
 }
 
 // --- Facteur DER -----------------------------------------------------------

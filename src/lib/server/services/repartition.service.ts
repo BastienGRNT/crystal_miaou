@@ -274,7 +274,7 @@ export async function calculerEtPersisterRepartitionJournaliere(
 
 	const rer = calculerRER(Number(cat.weightKg));
 	const facteurDER = resoudreFacteurDER(deriveDERFactorProfileFromCat(cat, new Date()));
-	const der = calculerDER(rer, facteurDER);
+	const der = calculerDER(rer, facteurDER, Number(cat.derAjustementPct));
 
 	const slots: SlotEtat[] = mealEntries.map((entry) => ({
 		id: entry.id,

@@ -149,6 +149,12 @@ export const cat = pgTable(
 		// renseigné (specs/nutrition-spec.md section 3, Cas A — quantité fixée par l'utilisateur).
 		// Null = comportement par défaut, calculé automatiquement pour couvrir le DER.
 		pateeNombrePaquetsOverride: numeric('patee_nombre_paquets_override', { precision: 4, scale: 1 }),
+		// Ajustement manuel du DER en %, réservé au suivi de poids dans le temps (specs/nutrition-spec.md
+		// section 5 : "on nourrit selon ce calcul 2-3 semaines, on repèse, on ajuste d'environ ±10% si
+		// besoin"). Toujours choisi explicitement par l'utilisateur — jamais recalculé automatiquement par
+		// l'app à partir des pesées, cf. CAT_DER_AJUSTEMENT_PCT_VALEURS (cat.calc.ts) pour les valeurs
+		// autorisées (-10, -5, 0, 5, 10).
+		derAjustementPct: integer('der_ajustement_pct').default(0).notNull(),
 		createdByUserId: text('created_by_user_id')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),

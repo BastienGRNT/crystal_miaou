@@ -63,7 +63,7 @@ export async function obtenirAnalysePourUtilisateur(
 
 	const rer = calculerRER(Number(cat.weightKg));
 	const facteurDER = resoudreFacteurDER(deriveDERFactorProfileFromCat(cat, today));
-	const der = calculerDER(rer, facteurDER);
+	const der = calculerDER(rer, facteurDER, Number(cat.derAjustementPct));
 
 	const entriesParJour = new Map<string, typeof mealEntries>();
 	for (const entry of mealEntries) {

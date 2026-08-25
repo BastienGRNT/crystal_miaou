@@ -106,7 +106,10 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
 ## Domaine métier
 
 - **Profil chat** (`cat`) : nom, poids, âge, sexe, stérilisé ou non, niveau d'activité, conditions de
-  santé pertinentes pour le calcul (gestation, croissance, surpoids...).
+  santé pertinentes pour le calcul (gestation, croissance, surpoids...). `derAjustementPct` : correctif
+  manuel du DER en % (valeurs fermées ±5/±10, `CAT_DER_AJUSTEMENT_PCT_VALEURS` dans `cat.calc.ts`),
+  réservé au suivi de poids dans le temps (specs/nutrition-spec.md section 5) — toujours choisi
+  explicitement par l'utilisateur depuis "Mes chats", jamais recalculé automatiquement par l'app.
 - **Catalogue produits** (`food`) : nom, marque, type (croquette/pâtée/friandise), valeurs
   nutritionnelles pour 100g (calories, protéines, lipides, glucides, fibres, cendres, humidité...),
   poids du paquet (`packageSizeG`, pâtée uniquement).

@@ -2,6 +2,7 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { updateCatFoodSelectionForUser, updateCatProfileForUser } from '$lib/server/services/cat.service';
 import {
 	CAT_ACTIVITY_LEVEL_VALUES,
+	CAT_DER_AJUSTEMENT_PCT_VALEURS,
 	CAT_SEX_VALUES,
 	CAT_SPECIAL_CONDITION_VALUES,
 	type CatFoodSelectionInput,
@@ -16,7 +17,8 @@ const PROFILE_FIELDS = [
 	'sterilized',
 	'activityLevel',
 	'hasOutdoorAccess',
-	'specialCondition'
+	'specialCondition',
+	'derAjustementPct'
 ];
 
 export const PATCH: RequestHandler = async ({ request, locals, params }) => {
@@ -39,7 +41,10 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 			hasOutdoorAccess: Boolean(body.hasOutdoorAccess),
 			specialCondition: CAT_SPECIAL_CONDITION_VALUES.includes(body.specialCondition)
 				? body.specialCondition
-				: 'aucune'
+				: 'aucune',
+			derAjustementPct: CAT_DER_AJUSTEMENT_PCT_VALEURS.includes(Number(body.derAjustementPct))
+				? Number(body.derAjustementPct)
+				: 0
 		};
 
 		const result = await updateCatProfileForUser(params.id, input, locals.user.id);

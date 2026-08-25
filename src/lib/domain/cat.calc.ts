@@ -13,6 +13,12 @@ export const CAT_SPECIAL_CONDITION_VALUES: readonly CatSpecialCondition[] = [
 	'surpoids'
 ];
 
+/** Ajustement manuel du DER, en % — specs/nutrition-spec.md section 5 : après 2-3 semaines de suivi de
+ * poids, on ajuste "d'environ ±10% si besoin". Valeurs fermées (pas un curseur libre) pour rester dans
+ * la fourchette usuelle documentée par la spec ; c'est toujours l'utilisateur qui choisit, jamais l'app
+ * qui recalcule seule à partir des pesées (cf. `WeightHistoryPanel`, qui ne fait que suggérer). */
+export const CAT_DER_AJUSTEMENT_PCT_VALEURS: readonly number[] = [-10, -5, 0, 5, 10];
+
 export interface CatOnboardingInput {
 	name: string;
 	weightKg: number;
@@ -92,6 +98,7 @@ export interface CatProfileInput {
 	activityLevel: CatActivityLevel;
 	hasOutdoorAccess: boolean;
 	specialCondition: CatSpecialCondition;
+	derAjustementPct: number;
 }
 
 export interface CatProfileValidationResult {
@@ -124,6 +131,10 @@ export function validateCatProfileInput(input: CatProfileInput): CatProfileValid
 
 	if (!CAT_SPECIAL_CONDITION_VALUES.includes(input.specialCondition)) {
 		errors.specialCondition = 'Condition particulière invalide.';
+	}
+
+	if (!CAT_DER_AJUSTEMENT_PCT_VALEURS.includes(input.derAjustementPct)) {
+		errors.derAjustementPct = 'Ajustement du DER invalide.';
 	}
 
 	return { valid: Object.keys(errors).length === 0, errors };

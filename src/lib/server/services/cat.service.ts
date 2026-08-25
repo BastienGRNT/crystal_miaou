@@ -95,7 +95,8 @@ export async function updateCatProfileForUser(
 		sterilized: input.sterilized,
 		activityLevel: input.activityLevel,
 		hasOutdoorAccess: input.hasOutdoorAccess,
-		specialCondition: input.specialCondition
+		specialCondition: input.specialCondition,
+		derAjustementPct: input.derAjustementPct
 	});
 
 	return { success: true, cat: updated };

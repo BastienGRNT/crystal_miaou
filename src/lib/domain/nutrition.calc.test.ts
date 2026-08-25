@@ -60,6 +60,12 @@ describe('calculerDER', () => {
 	it('multiplie le RER par le facteur', () => {
 		expect(calculerDER(200, 1.2)).toBeCloseTo(240, 6);
 	});
+
+	it('applique le correctif manuel en % quand fourni, 0 par défaut', () => {
+		expect(calculerDER(200, 1.2, 10)).toBeCloseTo(264, 6); // 240 * 1.10
+		expect(calculerDER(200, 1.2, -10)).toBeCloseTo(216, 6); // 240 * 0.90
+		expect(calculerDER(200, 1.2, 0)).toBeCloseTo(calculerDER(200, 1.2), 6);
+	});
 });
 
 describe('resoudreFacteurDER', () => {

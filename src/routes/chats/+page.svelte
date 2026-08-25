@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import {
 		CAT_ACTIVITY_LEVEL_VALUES,
+		CAT_DER_AJUSTEMENT_PCT_VALEURS,
 		CAT_SEX_VALUES,
 		CAT_SPECIAL_CONDITION_VALUES,
 		validateCatProfileInput,
@@ -41,6 +42,7 @@
 		activityLevel: CatActivityLevel;
 		hasOutdoorAccess: boolean;
 		specialCondition: CatSpecialCondition;
+		derAjustementPct: number;
 	}
 
 	let { data }: { data: { cats: CatRecord[]; currentUserId: string } } = $props();
@@ -85,6 +87,7 @@
 	let activityLevel = $state<CatActivityLevel>('modere');
 	let hasOutdoorAccess = $state(false);
 	let specialCondition = $state<CatSpecialCondition>('aucune');
+	let derAjustementPct = $state(0);
 
 	let errors = $state<Partial<Record<keyof CatProfileInput, string>>>({});
 	let submitError = $state<string | null>(null);
@@ -103,6 +106,7 @@
 		activityLevel = cat.activityLevel;
 		hasOutdoorAccess = cat.hasOutdoorAccess;
 		specialCondition = cat.specialCondition;
+		derAjustementPct = cat.derAjustementPct;
 		errors = {};
 		submitError = null;
 		showModal = true;
@@ -126,7 +130,8 @@
 			sterilized,
 			activityLevel,
 			hasOutdoorAccess,
-			specialCondition
+			specialCondition,
+			derAjustementPct
 		};
 
 		const validation = validateCatProfileInput(input);
@@ -184,6 +189,9 @@
 					<Badge variant="outline">{cat.hasOutdoorAccess ? 'Accès extérieur' : "Intérieur strict"}</Badge>
 					{#if cat.specialCondition !== 'aucune'}
 						<Badge variant="warning">{conditionLabels[cat.specialCondition]}</Badge>
+					{/if}
+					{#if cat.derAjustementPct !== 0}
+						<Badge variant="outline">Besoin ajusté {cat.derAjustementPct > 0 ? '+' : ''}{cat.derAjustementPct}%</Badge>
 					{/if}
 				</div>
 
@@ -251,6 +259,21 @@
 					{/each}
 				</Select>
 			</FormField>
+
+			<div class="flex flex-col gap-1">
+				<FormField label="Ajustement manuel du besoin (DER)" for="derAjustementPct" error={errors.derAjustementPct}>
+					<Select id="derAjustementPct" bind:value={derAjustementPct}>
+						{#each CAT_DER_AJUSTEMENT_PCT_VALEURS as value (value)}
+							<option {value}>{value === 0 ? 'Aucun (par défaut)' : `${value > 0 ? '+' : ''}${value}%`}</option>
+						{/each}
+					</Select>
+				</FormField>
+				<p class="text-xs text-muted-foreground">
+					À utiliser après quelques semaines de suivi de poids (onglet "Suivi de poids") si la
+					tendance ne va pas dans le sens souhaité — jamais l'app qui décide seule, toujours vous
+					(idéalement avec l'avis de votre vétérinaire) qui choisissez ce correctif.
+				</p>
+			</div>
 
 			{#if submitError}<Alert variant="danger">{submitError}</Alert>{/if}
 
