@@ -226,8 +226,10 @@
 			</p>
 			<ol class="list-decimal space-y-1.5 pl-5 text-sm text-foreground">
 				<li>
-					<strong>Pâtée</strong> : nombre de paquets entiers/jour calculé pour se rapprocher au plus
-					près du DER — jamais 0 tant qu'elle est active, jamais donnée "en vrac".
+					<strong>Pâtée</strong> : nombre de paquets <strong>entiers</strong>/jour — jamais un demi ou
+					un tiers de paquet, jamais 0 tant qu'elle est active. En cas d'hésitation entre deux nombres
+					de paquets également proches du DER, l'app choisit le plus petit : la pâtée coûte cher, mieux
+					vaut ouvrir un paquet de moins et laisser la croquette (moins chère) absorber la différence.
 				</li>
 				<li>
 					<strong>Friandise</strong> : quantité choisie par vous, pas calculée — c'est un extra, pas
@@ -239,10 +241,44 @@
 					— jamais de quantité négative.
 				</li>
 				<li>
-					Entre les créneaux d'un même type, la quantité est répartie à parts égales — sauf les
-					créneaux verrouillés (ajustés à la main, ou déjà cochés "donné"), qui gardent leur valeur.
+					Pâtée et friandise sont réparties à parts égales entre leurs créneaux — sauf les créneaux
+					verrouillés (ajustés à la main, ou déjà cochés "donné"), qui gardent leur valeur. La
+					croquette suit une autre logique, détaillée ci-dessous.
 				</li>
 			</ol>
+
+			<h3 class="text-sm font-semibold text-foreground">Pourquoi deux croquettes du même jour n'ont pas le même poids</h3>
+			<p class="text-sm text-muted-foreground">
+				La croquette n'est pas coupée en parts égales entre ses créneaux. Chaque créneau reçoit un
+				objectif qui dépend du temps qu'il doit couvrir <strong>jusqu'au prochain repas</strong> (tous
+				aliments confondus) :
+			</p>
+			<p class="rounded-lg bg-muted px-3 py-2 font-mono text-sm text-foreground">
+				objectif du créneau (kcal) = durée jusqu'au repas suivant × (DER / durée pondérée du jour)
+			</p>
+			<p class="text-sm text-muted-foreground">
+				La nuit (22h-7h) compte pour 40% de sa durée réelle dans ce calcul : un long creux pendant que
+				le chat dort est normal et ne doit pas gonfler artificiellement le repas qui précède, contrairement
+				au même creux en pleine journée. Si un autre aliment (pâtée, friandise) est donné au même horaire
+				qu'une croquette, ses kcal sont <strong>déduites de l'objectif avant de peser la croquette</strong> —
+				une demi-pâtée à 8h fait directement baisser la portion de croquette de 8h, pas seulement le total
+				du jour. Un créneau dont la pâtée couvre déjà tout son objectif reçoit une croquette à 0g, jamais
+				négative.
+			</p>
+			<Alert variant="info" title={`"Jusqu'au prochain repas", pas "depuis le dernier"`}>
+				Le repas qui précède un long trou (ex: 13h avant un creux de 7h jusqu'à 20h) est volontairement le
+				plus gros de la journée — c'est lui qui doit tenir le chat jusqu'au repas suivant. Le repas de
+				20h, lui, n'a qu'à couvrir 3h jusqu'à 23h : il est petit à raison, le trou de 13h-20h a déjà été
+				compensé au moment où il a commencé, pas à la fin. Peser aussi par rapport au temps <em>depuis</em>
+				le dernier repas reviendrait à reprendre des calories au repas de 13h (déjà responsable de ce
+				trou) pour les redonner à 20h — un calcul qui se mordrait la queue sans rien changer au total du
+				jour.
+			</Alert>
+			<p class="text-xs text-muted-foreground">
+				Un créneau verrouillé (ajusté à la main via le slider, ou déjà coché "donné") garde toujours sa
+				quantité : il n'est jamais recalculé, et sert de point de repère fixe pour peser les créneaux
+				encore libres autour de lui.
+			</p>
 		</Card>
 
 		<Card>
