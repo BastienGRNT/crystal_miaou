@@ -272,18 +272,34 @@ Tu compares ensuite cette valeur à une table de référence (ci-dessous).
 | Arginine | ~2.6 g / 1000 kcal | — | Indispensable même en un seul repas (le chat ne peut pas synthétiser d'urée sans) |
 | Calcium | ~1.4 g / 1000 kcal | ~6 g / 1000 kcal | Ratio Ca:P doit rester entre 1:1 et 2:1 |
 | Phosphore | ~1.3 g / 1000 kcal | ~2.5 g / 1000 kcal | Attention en cas d'insuffisance rénale (hors sujet ici mais garde en tête si tu ajoutes un jour un mode "chat avec pathologie") |
-| Glucides | pas de minimum (le chat n'a **aucun besoin physiologique** de glucides) | pas de maximum réglementaire, mais > 10-12% de la MS interroge sur la pertinence espèce | À traiter comme un indicateur qualité plus qu'une alerte stricte |
+| Glucides | pas de minimum (le chat n'a **aucun besoin physiologique** de glucides) | pas de maximum réglementaire ; idéal scientifique < 10-12% de la MS (FEDIAF/AAFCO, catinfo.org), mais quasi inatteignable en croquette extrudée classique (y compris "sans céréales") ; seuils d'usage retenus par l'app : < 25% MS correct pour du sec, 25-30% un peu élevé, > 30% à éviter si possible | À traiter comme un indicateur qualité plus qu'une alerte stricte |
 
 **Décision d'implémentation (2026-08-24)** : jusqu'ici l'app affichait "OK" pour les glucides quelle que
 soit la valeur (aucun seuil exploité), ce qui ne répondait pas à "comment sait-on qu'il n'y en a pas
 trop ?". Corrigé : `agregerRation` calcule maintenant la matière sèche totale de la ration (poids −
 humidité, par aliment), et `validerRation` calcule le ratio glucides / matière sèche en %. Au-delà de
-12%, le statut passe à un nouveau statut **`ATTENTION`** (distinct de `EXCES`, réservé aux seuils
+25%, le statut passe à un nouveau statut **`ATTENTION`** (distinct de `EXCES`, réservé aux seuils
 médicaux durs comme Ca/P) — l'UI l'affiche "À surveiller", pas "Excès", pour ne pas donner un faux
 sentiment d'urgence sur un indicateur que la spec elle-même qualifie de qualité et non d'alerte stricte.
 Protéines/lipides/taurine restent volontairement sans maximum (carnivore strict) — l'UI l'explique
 maintenant explicitement plutôt que de laisser un silence ambigu, et renvoie vers la barre kcal/DER
 comme véritable garde-fou contre l'excès calorique global.
+
+**Révision des seuils glucides (2026-08-25)** : le seuil unique à 12% (repère scientifique FEDIAF/AAFCO
+pur) déclenchait `ATTENTION` sur quasiment toutes les croquettes du marché, y compris les gammes
+premium/low-carb — pas assez discriminant pour guider un choix. Remplacé par des seuils d'usage à deux
+paliers, alignés sur les fourchettes réellement observées sur des produits commerciaux (relevé
+Walkerville Vet, contrainte technique de l'extrusion documentée par Cat Mum Journal, Verbrugghe & Hesta
+2017 *"Cats and Carbohydrates: The Carnivore Fantasy?"*, Veterinary Sciences 4(4):55) : **< 25% MS**
+reste `OK` ("correct pour du sec") ; **25-30% MS** passe en `ATTENTION` ("un peu élevé") ; **> 30% MS**
+reste `ATTENTION` (toujours pas `EXCES` — indicateur qualité, pas seuil médical) mais le texte affiché
+nuance en "à éviter si possible" et l'action associée passe en impact `fort`. Le repère scientifique
+< 10-12% MS (catinfo.org, Dr Lisa Pierson DVM) reste mentionné dans l'UI comme référence "idéale", en
+précisant explicitement qu'il est quasi impossible à atteindre pour une croquette extrudée classique —
+même sans céréales, l'amidon (pois, pomme de terre, tapioca...) reste nécessaire comme liant de
+fabrication. `GLUCIDES_PCT_MS_SEUIL_ATTENTION` (25) et `GLUCIDES_PCT_MS_SEUIL_EXCES` (30) sont exportés
+depuis `nutrition.calc.ts` et réutilisés par `score.calc.ts` pour ce nuançage de texte — aucun seuil
+nutritionnel n'est redéfini en dehors de `nutrition.calc.ts`.
 
 ### 6.4 Logique de validation à coder
 

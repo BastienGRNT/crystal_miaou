@@ -288,9 +288,14 @@ export function calculerRatioEcartSeuil(valeur: number, seuil: SeuilNutriment): 
 	return null;
 }
 
-// Glucides : le chat n'a aucun besoin physiologique de glucides, pas de seuil réglementaire, mais un
-// ratio élevé "interroge sur la pertinence espèce" au-delà de ~10-12% de matière sèche (section 6.3).
-const GLUCIDES_PCT_MS_SEUIL_ATTENTION = 12;
+// Glucides : le chat n'a aucun besoin physiologique de glucides, pas de seuil réglementaire. L'idéal
+// scientifique (FEDIAF/AAFCO, catinfo.org) reste <10-12% de matière sèche, mais c'est quasiment
+// inatteignable pour une croquette extrudée classique (l'amidon sert de liant à la cuisson, y compris
+// sans céréales) — d'où des seuils d'usage plus réalistes, alignés sur ce qui s'observe réellement sur
+// le marché (section 6.3) : en dessous de 25%, c'est correct pour du sec ; 25-30%, un peu élevé ; au-delà
+// de 30%, à éviter si possible.
+export const GLUCIDES_PCT_MS_SEUIL_ATTENTION = 25;
+export const GLUCIDES_PCT_MS_SEUIL_EXCES = 30;
 
 export function validerRation(ration: RationAValider): StatusParNutriment[] {
 	const { totalNutriments, totalKcal } = ration;
@@ -368,6 +373,9 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 	if (totalNutriments.glucidesG !== null && totalNutriments.glucidesG !== undefined) {
 		if (ration.totalMatiereSecheG !== null && ration.totalMatiereSecheG !== undefined && ration.totalMatiereSecheG > 0) {
 			const glucidesPctMS = (totalNutriments.glucidesG / ration.totalMatiereSecheG) * 100;
+			// Seuil affiché comme cible = le repère "correct pour du sec" (25%) ; le second palier à 30%
+			// ("à éviter si possible") nuance le même statut ATTENTION via le texte plutôt qu'un statut à
+			// part — les glucides restent un indicateur qualité, jamais un seuil médical dur (EXCES).
 			const seuil: SeuilNutriment = { min: null, max: GLUCIDES_PCT_MS_SEUIL_ATTENTION };
 			resultats.push({
 				nutriment: 'glucides',

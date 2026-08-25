@@ -8,6 +8,7 @@
 
 import {
 	calculerRatioEcartSeuil,
+	GLUCIDES_PCT_MS_SEUIL_EXCES,
 	type NomNutrimentValide,
 	type StatusParNutriment,
 	type StatutNutriment
@@ -214,13 +215,14 @@ function actionPourNutriment(
 
 	if (statut.nutriment === 'glucides') {
 		const pire = input.glucidesParAliment[0];
+		const aEviter = statut.valeur > GLUCIDES_PCT_MS_SEUIL_EXCES;
 		return {
 			id: 'glucides',
 			titre: pire ? `Remplacer ${pire.foodName} par un produit moins sucré` : 'Réduire les glucides de la ration',
 			detail: pire
-				? `${pire.foodName} est l'aliment le plus riche en glucides de la ration (${pire.pctMatiereSeche.toFixed(0)}% de matière sèche). Un produit plus pauvre en féculents, ou une part de pâtée plus grande, fera baisser cet indicateur.`
+				? `${pire.foodName} est l'aliment le plus riche en glucides de la ration (${pire.pctMatiereSeche.toFixed(0)}% de matière sèche${aEviter ? ', à éviter si possible au-delà de 30%' : ''}). Un produit plus pauvre en féculents, ou une part de pâtée plus grande, fera baisser cet indicateur.`
 				: 'Les croquettes contiennent souvent plus de glucides que la pâtée : augmenter la part de pâtée fait baisser cet indicateur.',
-			impact: 'moyen',
+			impact: aEviter ? 'fort' : 'moyen',
 			href: '/aliments',
 			hrefLabel: 'Comparer mes aliments'
 		};

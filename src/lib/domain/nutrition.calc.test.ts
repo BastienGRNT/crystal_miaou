@@ -257,22 +257,22 @@ describe('validerRation', () => {
 		expect(resultats.find((r) => r.nutriment === 'glucides')?.statut).toBe('OK');
 	});
 
-	it('signale ATTENTION (pas EXCES) au-delà de 12% de matière sèche en glucides', () => {
+	it('signale ATTENTION (pas EXCES) au-delà de 25% de matière sèche en glucides', () => {
 		const resultats = validerRation({
-			totalNutriments: { proteinesG: 60, lipidesG: 25, glucidesG: 20 },
+			totalNutriments: { proteinesG: 60, lipidesG: 25, glucidesG: 30 },
 			totalKcal: 1000,
-			totalMatiereSecheG: 100 // 20/100 = 20% MS > 12%
+			totalMatiereSecheG: 100 // 30/100 = 30% MS > 25%
 		});
 		const glucides = resultats.find((r) => r.nutriment === 'glucides');
 		expect(glucides?.statut).toBe('ATTENTION');
-		expect(glucides?.valeur).toBeCloseTo(20, 6);
+		expect(glucides?.valeur).toBeCloseTo(30, 6);
 	});
 
-	it('glucides sous 12% de matière sèche : OK', () => {
+	it('glucides sous 25% de matière sèche : OK', () => {
 		const resultats = validerRation({
-			totalNutriments: { proteinesG: 60, lipidesG: 25, glucidesG: 5 },
+			totalNutriments: { proteinesG: 60, lipidesG: 25, glucidesG: 20 },
 			totalKcal: 1000,
-			totalMatiereSecheG: 100 // 5/100 = 5% MS
+			totalMatiereSecheG: 100 // 20/100 = 20% MS
 		});
 		expect(resultats.find((r) => r.nutriment === 'glucides')?.statut).toBe('OK');
 	});

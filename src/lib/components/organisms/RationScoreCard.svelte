@@ -61,6 +61,10 @@
 
 	const actionsVisibles = $derived(score.actions.slice(0, ACTIONS_VISIBLES));
 	const actionsRepliees = $derived(score.actions.slice(ACTIONS_VISIBLES));
+
+	/** Repliée par défaut : la note suffit au quotidien, le détail (axes, pistes) n'intéresse que le
+	 * jour où on veut comprendre ou corriger — sauf s'il y a déjà un problème à traiter. */
+	const detailOuvertParDefaut = $derived(score.niveau === 'a_ameliorer' || score.niveau === 'insuffisant');
 </script>
 
 {#snippet ligneAction(action: ActionScore)}
@@ -111,57 +115,60 @@
 				<Badge variant={badgeNiveau[score.niveau]}>Menu de {catName}</Badge>
 			</div>
 			<p class="text-sm leading-relaxed text-foreground">{score.verdict}</p>
-			<a
-				href="/comprendre#score"
-				class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-primary hover:underline sm:justify-start"
-			>
-				<Sparkles class="size-3.5" />
-				Comment ce score est calculé
-			</a>
 		</div>
 	</div>
 
-	<div class="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 px-3.5 py-3">
-		{#each score.axes as axe (axe.id)}
-			{@const Icon = iconeAxe[axe.statut]}
-			<div class="flex items-start gap-2.5">
-				<Icon class="mt-0.5 size-4 shrink-0 {couleurAxe[axe.statut]}" />
-				<div class="flex flex-1 flex-col gap-0.5">
-					<div class="flex items-baseline justify-between gap-2">
-						<span class="text-sm font-medium text-foreground">{axe.label}</span>
-						<span class="font-heading text-xs text-muted-foreground">{axe.points}/{axe.pointsMax}</span>
+	<Disclosure title="Voir le détail du score" open={detailOuvertParDefaut} class="shadow-none">
+		<div class="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 px-3.5 py-3">
+			{#each score.axes as axe (axe.id)}
+				{@const Icon = iconeAxe[axe.statut]}
+				<div class="flex items-start gap-2.5">
+					<Icon class="mt-0.5 size-4 shrink-0 {couleurAxe[axe.statut]}" />
+					<div class="flex flex-1 flex-col gap-0.5">
+						<div class="flex items-baseline justify-between gap-2">
+							<span class="text-sm font-medium text-foreground">{axe.label}</span>
+							<span class="font-heading text-xs text-muted-foreground">{axe.points}/{axe.pointsMax}</span>
+						</div>
+						<span class="text-xs leading-relaxed text-muted-foreground">{axe.resume}</span>
 					</div>
-					<span class="text-xs leading-relaxed text-muted-foreground">{axe.resume}</span>
 				</div>
-			</div>
-		{/each}
-	</div>
-
-	{#if score.actions.length > 0}
-		<div class="flex flex-col gap-2">
-			<p class="font-heading text-sm font-semibold text-foreground">
-				{score.actions.length === 1 ? 'La piste à suivre' : 'Les pistes à suivre'}
-			</p>
-			{#each actionsVisibles as action (action.id)}
-				{@render ligneAction(action)}
 			{/each}
 		</div>
 
-		{#if actionsRepliees.length > 0}
-			<Disclosure
-				title={`${actionsRepliees.length} autre${actionsRepliees.length > 1 ? 's' : ''} piste${actionsRepliees.length > 1 ? 's' : ''}`}
-				subtitle="Moins d'impact, à traiter quand vous aurez le temps."
-				class="shadow-none"
-			>
-				{#each actionsRepliees as action (action.id)}
+		{#if score.actions.length > 0}
+			<div class="flex flex-col gap-2">
+				<p class="font-heading text-sm font-semibold text-foreground">
+					{score.actions.length === 1 ? 'La piste à suivre' : 'Les pistes à suivre'}
+				</p>
+				{#each actionsVisibles as action (action.id)}
 					{@render ligneAction(action)}
 				{/each}
-			</Disclosure>
+			</div>
+
+			{#if actionsRepliees.length > 0}
+				<Disclosure
+					title={`${actionsRepliees.length} autre${actionsRepliees.length > 1 ? 's' : ''} piste${actionsRepliees.length > 1 ? 's' : ''}`}
+					subtitle="Moins d'impact, à traiter quand vous aurez le temps."
+					class="shadow-none"
+				>
+					{#each actionsRepliees as action (action.id)}
+						{@render ligneAction(action)}
+					{/each}
+				</Disclosure>
+			{/if}
+		{:else}
+			<p class="text-xs text-muted-foreground">
+				Rien à corriger aujourd'hui : servez les quantités affichées plus bas et cochez-les au fur et à
+				mesure.
+			</p>
 		{/if}
-	{:else}
-		<p class="text-xs text-muted-foreground">
-			Rien à corriger aujourd'hui : servez les quantités affichées plus bas et cochez-les au fur et à
-			mesure.
-		</p>
-	{/if}
+
+		<a
+			href="/comprendre#score"
+			class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-primary hover:underline sm:justify-start"
+		>
+			<Sparkles class="size-3.5" />
+			Comment ce score est calculé
+		</a>
+	</Disclosure>
 </Card>

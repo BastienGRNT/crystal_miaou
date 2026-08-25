@@ -67,7 +67,7 @@ describe('calculerScoreRation', () => {
 			inputParfait({
 				totalKcal: 300,
 				statuts: [
-					{ nutriment: 'glucides', valeur: 28, statut: 'ATTENTION', seuil: { min: null, max: 12 }, positionPct: 100 }
+					{ nutriment: 'glucides', valeur: 28, statut: 'ATTENTION', seuil: { min: null, max: 25 }, positionPct: 100 }
 				],
 				glucidesParAliment: [{ foodId: 'f1', foodName: 'Croquettes X', pctMatiereSeche: 30 }],
 				fiabiliteParAliment: [

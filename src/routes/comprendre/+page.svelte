@@ -277,11 +277,83 @@
 							<td>—</td>
 						</tr>
 						<tr class="border-b border-border/50"><td class="py-1.5 pr-3">Ratio Calcium:Phosphore</td><td class="pr-3">1:1</td><td>2:1</td></tr>
-						<tr><td class="py-1.5 pr-3">Glucides</td><td class="pr-3">—</td><td>12% de matière sèche</td></tr>
+						<tr><td class="py-1.5 pr-3">Glucides</td><td class="pr-3">—</td><td>25% de matière sèche ("À surveiller" au-delà, "à éviter si possible" au-delà de 30%)</td></tr>
 					</tbody>
 				</table>
 			</div>
-			<Alert variant="info" title='"Pas de maximum" ne veut pas dire "pas de risque d\'excès"'>
+
+			<div class="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 px-3.5 py-3">
+				<p class="text-sm font-semibold text-foreground">
+					Glucides : ce que donnent vraiment les produits du commerce
+				</p>
+				<p class="text-sm text-muted-foreground">
+					L'idéal scientifique (FEDIAF/AAFCO, vétérinaires nutritionnistes comme catinfo.org) reste en
+					dessous de 10-12% de matière sèche — c'est quasiment inatteignable pour une croquette
+					extrudée classique, y compris "sans céréales" (voir plus bas pourquoi). Les seuils utilisés
+					ci-dessus par l'app sont donc des repères d'usage, plus réalistes : en dessous de 25%, c'est
+					correct pour du sec ; entre 25 et 30%, un peu élevé ; au-delà de 30%, à éviter si possible.
+					Voici des fourchettes observées sur des analyses de produits réels — à titre indicatif,
+					chaque paquet a sa propre valeur (voir sa fiche <a href="/aliments" class="underline">Aliments</a>) :
+				</p>
+				<div class="overflow-x-auto">
+					<table class="w-full min-w-[420px] text-sm">
+						<thead>
+							<tr class="border-b border-border text-left text-muted-foreground">
+								<th class="py-1.5 pr-3 font-medium">Catégorie</th>
+								<th class="py-1.5 font-medium">Glucides observés (% matière sèche)</th>
+							</tr>
+						</thead>
+						<tbody class="text-foreground">
+							<tr class="border-b border-border/50">
+								<td class="py-1.5 pr-3">Croquette premium / "low-carb"</td>
+								<td>~15 – 25%</td>
+							</tr>
+							<tr class="border-b border-border/50">
+								<td class="py-1.5 pr-3">Croquette milieu de gamme</td>
+								<td>~25 – 35%</td>
+							</tr>
+							<tr class="border-b border-border/50">
+								<td class="py-1.5 pr-3">Croquette entrée de gamme</td>
+								<td>~35 – 45%</td>
+							</tr>
+							<tr class="border-b border-border/50">
+								<td class="py-1.5 pr-3">Pâtée pur viande, sans céréales</td>
+								<td>~0 – 10%</td>
+							</tr>
+							<tr>
+								<td class="py-1.5 pr-3">Pâtée avec céréales/sauce épaissie</td>
+								<td>~10 – 25%</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<p class="text-xs text-muted-foreground">
+					La croquette extrudée classique (l'immense majorité du marché) a besoin structurellement
+					d'environ 30 à 45% d'amidon pour tenir sa forme au moment de la fabrication — c'est la
+					raison technique pour laquelle quasiment aucune croquette ne descend sous le seuil
+					scientifique de 10-12%, pas une question de qualité de la marque. "Sans céréales" ne veut
+					pas dire "pauvre en glucides" : le blé/maïs/riz est alors simplement remplacé par une autre
+					source d'amidon (pois, pomme de terre, tapioca) qui joue le même rôle de liant — on trouve
+					très peu de croquettes sous 15-20% de matière sèche en pratique, céréales ou non. Les rares
+					qui s'en approchent utilisent un procédé différent (cru, lyophilisé, cuit à froid), pas
+					l'extrusion classique.
+				</p>
+				<p class="text-xs text-muted-foreground">
+					Sources : relevé de produits commerciaux (dont Holistic Select, PRO PLAN, Fancy Feast, Hill's)
+					par <a href="https://www.walkervillevet.com.au/blog/carbohydrates-levels-cat-food/" class="underline" target="_blank" rel="noopener">Walkerville Vet</a> ;
+					contrainte de fabrication par extrusion documentée par
+					<a href="https://www.catmumjournal.co.uk/post/how-to-calculate-carbohydrates-in-cat-food-and-understanding-dry-matter-basis" class="underline" target="_blank" rel="noopener">Cat Mum Journal</a> ;
+					Verbrugghe A, Hesta M (2017), <em>"Cats and Carbohydrates: The Carnivore Fantasy?"</em>,
+					<a href="https://doi.org/10.3390/vetsci4040055" class="underline" target="_blank" rel="noopener">Veterinary Sciences 4(4):55</a>
+					— confirme que les aliments conventionnels apportent 20 à 40% de l'énergie sous forme de
+					glucides (jusqu'à 55% pour certains), que le taux d'amidon varie directement avec le
+					procédé de fabrication, et que le "sans céréales" n'est pas un gage de faible teneur en
+					glucides ; repère "idéal &lt;10%" cohérent avec
+					<a href="https://catinfo.org/commercial-cat-foods/" class="underline" target="_blank" rel="noopener">catinfo.org</a> (Dr Lisa Pierson, DVM).
+				</p>
+			</div>
+
+			<Alert variant="info" title={`"Pas de maximum" ne veut pas dire "pas de risque d'excès"`}>
 				Protéines, lipides et taurine n'ont volontairement pas de maximum ici : un chat carnivore
 				strict n'a pas besoin d'être limité dessus, et la spec ne fixe pas de borne haute pour ces
 				nutriments. Le vrai risque de "trop", c'est l'excès <strong>calorique</strong> total — c'est
@@ -306,7 +378,8 @@
 				cécité — mais quasi jamais assimilée aussi bien en pâtée qu'en croquette, d'où le seuil plus
 				élevé. Les glucides n'ont pas de statut "Déficit"/"Excès" à proprement parler (aucun besoin
 				physiologique chez le chat, donc pas de risque de carence), mais l'app affiche "À surveiller"
-				au-delà de 12% de matière sèche — un indicateur qualité, pas une alerte médicale.
+				au-delà de 25% de matière sèche (un peu élevé), avec une mention "à éviter si possible"
+				au-delà de 30% — un indicateur qualité, pas une alerte médicale.
 			</p>
 			<p class="text-xs text-muted-foreground">
 				Si les deux aliments actifs sont marqués "Complet" (norme FEDIAF/AAFCO), le fabricant garantit
@@ -341,6 +414,18 @@
 				<li>NRC — National Research Council, "Nutrient Requirements of Dogs and Cats".</li>
 				<li>FEDIAF — European Pet Food Industry Federation, guide nutritionnel (mise à jour 09/2024).</li>
 				<li>AAFCO — Association of American Feed Control Officials, "Guaranteed Analysis" et profils nutritionnels.</li>
+				<li>
+					Verbrugghe A, Hesta M (2017), "Cats and Carbohydrates: The Carnivore Fantasy?", Veterinary
+					Sciences 4(4):55 — <a href="https://doi.org/10.3390/vetsci4040055" class="underline" target="_blank" rel="noopener">doi.org/10.3390/vetsci4040055</a>.
+				</li>
+				<li>
+					Walkerville Vet — relevé de teneur en glucides de produits commerciaux (croquettes et
+					pâtées) : <a href="https://www.walkervillevet.com.au/blog/carbohydrates-levels-cat-food/" class="underline" target="_blank" rel="noopener">walkervillevet.com.au</a>.
+				</li>
+				<li>
+					Cat Mum Journal — méthode de calcul en matière sèche et contrainte de l'extrusion :
+					<a href="https://www.catmumjournal.co.uk/post/how-to-calculate-carbohydrates-in-cat-food-and-understanding-dry-matter-basis" class="underline" target="_blank" rel="noopener">catmumjournal.co.uk</a>.
+				</li>
 			</ul>
 		</Card>
 	</div>
