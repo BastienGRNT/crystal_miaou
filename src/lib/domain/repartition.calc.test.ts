@@ -204,6 +204,49 @@ describe('calculerRepartitionJournaliere', () => {
 		expect(resultat.avertissements).toHaveLength(0);
 	});
 
+	it('un créneau dont le gap est court ne descend jamais sous le plancher de 6g (retour terrain : 2.5g jugé inutile)', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'matin', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'midi', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 9 * 60 },
+			{ id: 'soir', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 }
+		];
+
+		const resultat = calculerRepartitionJournaliere({
+			der: 300,
+			croquette: { kcal100g: 375 },
+			patee: null,
+			friandise: null,
+			slots
+		});
+
+		// Sans plancher, "matin" tomberait autour de 4.3g (gap le plus court des trois) : le plancher le
+		// remonte à 6g, la différence étant reprise sur "midi"/"soir" qui ont de la marge.
+		const matin = resultat.slots.find((s) => s.id === 'matin')!.quantiteG;
+		const total = resultat.slots.reduce((somme, s) => somme + s.quantiteG, 0);
+
+		expect(matin).toBeGreaterThanOrEqual(6);
+		expect(total).toBeCloseTo(80, 0); // somme préservée malgré le plancher
+	});
+
+	it('budget croquette insuffisant pour le plancher sur tous les créneaux : avertissement explicite', () => {
+		const slots: SlotEtat[] = Array.from({ length: 5 }, (_, i) => ({
+			id: `c${i}`,
+			foodType: 'croquette' as const,
+			locked: false,
+			quantiteActuelleG: 0
+		}));
+
+		const resultat = calculerRepartitionJournaliere({
+			der: 20,
+			croquette: { kcal100g: 375 },
+			patee: null,
+			friandise: null,
+			slots
+		});
+
+		expect(resultat.avertissements.some((a) => a.includes('ne permet pas'))).toBe(true);
+	});
+
 	it('pâtée seule dépassant le besoin : avertissement, pas de valeur négative', () => {
 		const slots: SlotEtat[] = [{ id: 'p1', foodType: 'patee', locked: false, quantiteActuelleG: 0 }];
 

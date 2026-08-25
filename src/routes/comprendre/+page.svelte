@@ -274,6 +274,18 @@
 				trou) pour les redonner à 20h — un calcul qui se mordrait la queue sans rien changer au total du
 				jour.
 			</Alert>
+			<p class="text-sm text-muted-foreground">
+				Ceci dit, un calcul purement proportionnel peut, sur un créneau au gap très court, tomber à
+				quelques grammes — plus vraiment un repas (retour d'usage : une portion de 2.5g jugée inutile,
+				ni pour la satiété ni pour l'intérêt du chat). L'app impose donc un <strong>plancher de 6g</strong>
+				par créneau croquette non verrouillé : en dessous, la quantité est remontée à 6g et la
+				différence reprise sur les créneaux voisins qui ont de la marge — le total du jour ne change
+				jamais. Si la routine a trop de créneaux croquette pour le DER du jour (impossible de mettre 6g
+				partout même en reprenant sur les voisins), un avertissement le signale au lieu de forcer un
+				calcul intenable ; la meilleure réponse est alors de resserrer la routine (moins de créneaux
+				croquette, ou un créneau de plus pour combler un long trou plutôt que de compter sur un seul
+				gros repas suivi d'un creux).
+			</p>
 			<p class="text-xs text-muted-foreground">
 				Un créneau verrouillé (ajusté à la main via le slider, ou déjà coché "donné") garde toujours sa
 				quantité : il n'est jamais recalculé, et sert de point de repère fixe pour peser les créneaux

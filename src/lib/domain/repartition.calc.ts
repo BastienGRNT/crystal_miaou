@@ -14,8 +14,12 @@
 // pondérée jusqu'au repas suivant × taux kcal/minute uniforme sur la journée, nuit atténuée) DONT ON
 // DÉDUIT les kcal déjà apportées au même horaire par la pâtée ou la friandise (`calculerPoidsGapCroquette`)
 // — une pâtée donnée à 8h fait directement baisser la portion de croquette du créneau de 8h, pas
-// seulement le total du jour. Un créneau verrouillé (ajusté manuellement ou déjà "donné") garde sa
-// quantité, jamais recalculée.
+// seulement le total du jour. Cette pondération n'a en revanche aucune limite basse par elle-même : un
+// créneau au gap très court peut retomber à quelques grammes, ce qui n'est plus vraiment un repas — un
+// plancher dur de `PORTION_CROQUETTE_MIN_G` (6g) force donc chaque créneau non verrouillé à rester
+// au-dessus, la différence étant reprise sur les créneaux voisins qui ont de la marge
+// (`appliquerPlancherPortions`), jamais sur le total du jour qui reste inchangé. Un créneau verrouillé
+// (ajusté manuellement ou déjà "donné") garde sa quantité, jamais recalculée.
 
 import { arrondirGrammes } from '$lib/domain/nutrition.calc';
 
@@ -32,6 +36,14 @@ const SEUIL_REEQUILIBRAGE_RATIO = 0.1;
 /** Part par défaut du budget calorique restant (après friandise) allouée à la pâtée quand croquette
  * ET pâtée sont actives simultanément — 50/50, ajustable ensuite par l'utilisateur via le slider. */
 const RATIO_PATEE_QUAND_CROQUETTE_ACTIVE = 0.5;
+
+/** En dessous de ce poids, une portion de croquette n'est plus vraiment un repas — juste un reliquat
+ * d'arrondi (retour terrain : un créneau à 2.5g après un créneau à 24.5g le même jour, jugé "inutile,
+ * ça sent le calcul plutôt qu'un vrai repas"). Sert de plancher dur à la répartition pondérée par gap
+ * horaire (`appliquerPlancherPortions`) : jamais appliqué à un créneau verrouillé (l'utilisateur a déjà
+ * tranché), ni à la pâtée (quantifiée par paquet, déjà bien au-dessus) ni à la friandise (fixée par
+ * l'utilisateur, pas calculée). */
+export const PORTION_CROQUETTE_MIN_G = 6;
 
 /** Divise un total en `nombreParts` parts égales (arrondies), en corrigeant la dernière part pour
  * que la somme reste exactement `totalG`. */
@@ -263,18 +275,66 @@ function repartirParPoids(totalG: number, poids: number[]): number[] {
 	return parts;
 }
 
+/** Redistribue `parts` pour qu'aucune ne descende sous `plancherG`, en reprenant la différence sur les
+ * créneaux qui ont de la marge (au prorata de `poids`), sans jamais changer la somme totale. Procède par
+ * vagues : fige au plancher tout créneau qui repasse en dessous, redistribue le reste sur les créneaux
+ * encore libres, et recommence tant qu'un nouveau créneau franchit le seuil — converge en au plus
+ * `parts.length` itérations. Si le budget total ne permet même pas `plancherG` par créneau (routine avec
+ * trop de créneaux croquette pour un DER donné), la répartition d'origine est renvoyée inchangée —
+ * impossible à satisfaire, signalé séparément par l'appelant plutôt que de forcer une valeur arbitraire. */
+function appliquerPlancherPortions(parts: number[], poids: number[], plancherG: number): number[] {
+	const n = parts.length;
+	if (n === 0) return parts;
+
+	const total = parts.reduce((somme, p) => somme + p, 0);
+	if (n * plancherG > total + TOLERANCE_G) return parts;
+
+	const resultat = [...parts];
+	const fige = new Array(n).fill(false);
+
+	for (let iteration = 0; iteration < n; iteration++) {
+		let nouveauFige = false;
+		for (let i = 0; i < n; i++) {
+			if (!fige[i] && resultat[i] < plancherG - TOLERANCE_G) {
+				fige[i] = true;
+				resultat[i] = plancherG;
+				nouveauFige = true;
+			}
+		}
+		if (!nouveauFige) break;
+
+		const indicesLibres: number[] = [];
+		for (let i = 0; i < n; i++) if (!fige[i]) indicesLibres.push(i);
+
+		const totalFige = resultat.reduce((somme, p, i) => somme + (fige[i] ? p : 0), 0);
+		const reste = arrondirGrammes(total - totalFige);
+		const poidsLibres = indicesLibres.map((i) => poids[i] ?? 0);
+		const nouvellesParts = poidsLibres.some((p) => p > 0)
+			? repartirParPoids(reste, poidsLibres)
+			: repartirPaquetEnParts(reste, indicesLibres.length);
+
+		indicesLibres.forEach((i, k) => {
+			resultat[i] = nouvellesParts[k];
+		});
+	}
+
+	return resultat;
+}
+
 /** Répartit `totalG` sur les créneaux non verrouillés d'un même type, en préservant la quantité des
  * créneaux verrouillés. Alerte si le reste devient négatif (excès) ou si tous les créneaux restants sont
  * verrouillés sans que le total corresponde (le chat n'aura pas son compte). `uniteAlignementG`, quand
  * fourni (pâtée : demi-paquet), force chaque part non verrouillée à être un multiple exact de cette
  * unité plutôt qu'une part au gramme près. `poidsParId`, quand fourni et non vide (croquette), répartit
- * au prorata de ce poids au lieu de parts égales. */
+ * au prorata de ce poids au lieu de parts égales. `plancherG`, quand fourni (croquette), garantit qu'aucune
+ * part non verrouillée ne descend en dessous — cf. `appliquerPlancherPortions`. */
 function distribuerType(
 	totalG: number,
 	slotsType: SlotEtat[],
 	labelType: string,
 	uniteAlignementG?: number,
-	poidsParId?: Map<string, number>
+	poidsParId?: Map<string, number>,
+	plancherG?: number
 ): DistributionResultat {
 	const quantites = new Map<string, number>();
 	const verrouilles = slotsType.filter((s) => s.locked);
@@ -317,10 +377,13 @@ function distribuerType(
 	}
 
 	const poidsNonVerrouilles = nonVerrouilles.map((s) => poidsParId?.get(s.id) ?? 0);
-	const parts =
+	let parts =
 		poidsParId && poidsNonVerrouilles.some((p) => p > 0)
 			? repartirParPoids(reste, poidsNonVerrouilles)
 			: repartirPaquetEnParts(reste, nonVerrouilles.length);
+	if (plancherG && plancherG > 0) {
+		parts = appliquerPlancherPortions(parts, poidsNonVerrouilles, plancherG);
+	}
 	nonVerrouilles.forEach((s, i) => quantites.set(s.id, parts[i]));
 	return { quantites, avertissement: null };
 }
@@ -418,6 +481,13 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 		} else {
 			croquetteTotalG = arrondirGrammes(budgetKcal / (input.croquette.kcal100g / 100));
 		}
+
+		const croquettesNonVerrouillees = input.slots.filter((s) => s.foodType === 'croquette' && !s.locked);
+		if (croquettesNonVerrouillees.length * PORTION_CROQUETTE_MIN_G > croquetteTotalG + TOLERANCE_G) {
+			avertissements.push(
+				`Le budget croquette du jour (${arrondirGrammes(croquetteTotalG)} g) ne permet pas ${PORTION_CROQUETTE_MIN_G} g sur chacun des ${croquettesNonVerrouillees.length} créneaux — réduisez le nombre de créneaux croquette dans la routine ou revoyez le nombre de paquets de pâtée.`
+			);
+		}
 	} else if (input.patee) {
 		const ecartKcal = pateeTotalKcal + friandiseTotalKcal - input.der;
 		if (ecartKcal > TOLERANCE_G) {
@@ -445,18 +515,22 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 	// ne pas surcharger un créneau qui coïncide déjà avec un autre repas calorique (cf.
 	// `calculerPoidsGapCroquette`) — la croquette est calculée en dernier.
 	const quantitesParId = new Map<string, number>();
+	let poidsGapCroquette = new Map<string, number>();
 	for (const foodType of ['patee', 'friandise', 'croquette'] as const) {
 		const slotsType = input.slots.filter((s) => s.foodType === foodType);
 		if (slotsType.length === 0) continue;
 
 		let poidsParId: Map<string, number> | undefined;
+		let plancherG: number | undefined;
 		if (foodType === 'croquette') {
 			const kcalDejaDonneParHeure = construireKcalDejaDonneParHeure(input.slots, quantitesParId, {
 				patee: input.patee?.kcal100g,
 				friandise: input.friandise?.kcal100g,
 				croquette: input.croquette?.kcal100g
 			});
-			poidsParId = calculerPoidsGapCroquette(input.slots, input.der, kcalDejaDonneParHeure);
+			poidsGapCroquette = calculerPoidsGapCroquette(input.slots, input.der, kcalDejaDonneParHeure);
+			poidsParId = poidsGapCroquette;
+			plancherG = PORTION_CROQUETTE_MIN_G;
 		}
 
 		const { quantites, avertissement } = distribuerType(
@@ -464,7 +538,8 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 			slotsType,
 			LABELS_TYPE[foodType],
 			uniteAlignementParType[foodType],
-			poidsParId
+			poidsParId,
+			plancherG
 		);
 		for (const [id, quantite] of quantites) quantitesParId.set(id, quantite);
 		if (avertissement) avertissements.push(avertissement);
@@ -491,6 +566,15 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 		if (input.croquette) {
 			const croquettesLibres = input.slots.filter((s) => s.foodType === 'croquette' && !s.locked);
 			ecartRestant = appliquerCorrectionProportionnelle(croquettesLibres, quantitesParId, input.croquette.kcal100g, ecartRestant);
+
+			// Le lissage proportionnel ci-dessus applique le même facteur à tous les créneaux libres : ça
+			// peut repasser l'un d'eux sous le plancher d'une portion réelle. On le réapplique aussitôt,
+			// en reprenant sur les créneaux qui ont de la marge plutôt que de laisser un reliquat inutilisable.
+			const idsCroquettesLibres = croquettesLibres.map((s) => s.id);
+			const partsActuelles = idsCroquettesLibres.map((id) => quantitesParId.get(id) ?? 0);
+			const poidsCroquettesLibres = idsCroquettesLibres.map((id) => poidsGapCroquette.get(id) ?? 0);
+			const partsAjustees = appliquerPlancherPortions(partsActuelles, poidsCroquettesLibres, PORTION_CROQUETTE_MIN_G);
+			idsCroquettesLibres.forEach((id, i) => quantitesParId.set(id, partsAjustees[i]));
 		}
 
 		if (Math.abs(ecartRestant) > TOLERANCE_G && input.patee) {
