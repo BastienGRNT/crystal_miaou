@@ -1,14 +1,20 @@
 import {
+	addCatMember,
+	countMembersForCat,
 	createCatWithOwner,
 	deleteCatsCreatedByUser,
 	findCatById,
+	findUserByEmail,
 	isCatMemberForUser,
 	listCatsForUser,
+	listMembersForCat,
+	removeCatMemberByMembershipId,
 	updateCatFoodSelection,
 	updateCatProfile
 } from '$lib/server/repositories/cat.repository';
 import { findFoodByIdForUser } from '$lib/server/repositories/food.repository';
 import {
+	isValidEmail,
 	resolveCatBirthDate,
 	validateCatFoodSelectionInput,
 	validateCatOnboardingInput,
@@ -168,4 +174,89 @@ export async function updateCatFoodSelectionForUser(
 	});
 
 	return { success: true, cat: updated };
+}
+
+export interface CatMemberResult {
+	success: boolean;
+	member?: { membershipId: string; userId: string; name: string; email: string };
+	error?: string;
+}
+
+/** Ajoute au foyer d'un chat le compte existant correspondant à cet email — pas d'envoi de mail,
+ * l'autre personne doit déjà avoir un compte Crystal Miaou. Tout membre actuel peut inviter quelqu'un
+ * d'autre : le foyer n'a pas de notion de "propriétaire" au-delà de la création initiale. */
+export async function addCatMemberForUser(
+	catId: string,
+	email: string,
+	requestingUserId: string
+): Promise<CatMemberResult> {
+	const isMember = await isCatMemberForUser(catId, requestingUserId);
+	if (!isMember) {
+		return { success: false, error: 'Chat introuvable.' };
+	}
+
+	const trimmedEmail = email.trim();
+	if (!isValidEmail(trimmedEmail)) {
+		return { success: false, error: 'Adresse email invalide.' };
+	}
+
+	const invitedUser = await findUserByEmail(trimmedEmail);
+	if (!invitedUser) {
+		return { success: false, error: "Aucun compte Crystal Miaou n'existe avec cet email." };
+	}
+
+	const alreadyMember = await isCatMemberForUser(catId, invitedUser.id);
+	if (alreadyMember) {
+		return { success: false, error: 'Cette personne fait déjà partie du foyer de ce chat.' };
+	}
+
+	const membership = await addCatMember(catId, invitedUser.id);
+
+	return {
+		success: true,
+		member: {
+			membershipId: membership.id,
+			userId: invitedUser.id,
+			name: invitedUser.name,
+			email: invitedUser.email
+		}
+	};
+}
+
+export async function listMembersForCatForUser(
+	catId: string,
+	userId: string
+): Promise<{ success: boolean; members?: Awaited<ReturnType<typeof listMembersForCat>>; error?: string }> {
+	const isMember = await isCatMemberForUser(catId, userId);
+	if (!isMember) {
+		return { success: false, error: 'Chat introuvable.' };
+	}
+
+	return { success: true, members: await listMembersForCat(catId) };
+}
+
+/** Retirer un membre du foyer : n'importe quel membre peut retirer n'importe qui (y compris
+ * lui-même, pour quitter le foyer), sauf s'il ne reste plus qu'une seule personne — un chat doit
+ * toujours garder au moins un membre rattaché. */
+export async function removeCatMemberForUser(
+	catId: string,
+	membershipId: string,
+	requestingUserId: string
+): Promise<{ success: boolean; error?: string }> {
+	const isMember = await isCatMemberForUser(catId, requestingUserId);
+	if (!isMember) {
+		return { success: false, error: 'Chat introuvable.' };
+	}
+
+	const memberCount = await countMembersForCat(catId);
+	if (memberCount <= 1) {
+		return { success: false, error: 'Impossible de retirer le dernier membre du foyer.' };
+	}
+
+	const removed = await removeCatMemberByMembershipId(catId, membershipId);
+	if (!removed) {
+		return { success: false, error: 'Membre introuvable.' };
+	}
+
+	return { success: true };
 }

@@ -1,7 +1,8 @@
 import { db } from '$lib/server/db';
 import { food } from '$lib/server/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { FoodLegalStatus, FoodType } from '$lib/domain/food.calc';
+import { listHouseholdUserIds } from '$lib/server/repositories/cat.repository';
 
 export interface FoodRecordInput {
 	name: string;
@@ -28,18 +29,23 @@ function toNumeric(value: number): string {
 	return value.toString();
 }
 
+/** Catalogue partagé par foyer : visible par quiconque partage au moins un chat avec `ownerUserId`, pas
+ * seulement par le créateur — évite qu'un membre du foyer resaisisse en double un aliment déjà entré
+ * par l'autre. */
 export async function listFoodsForUser(ownerUserId: string, type?: FoodType) {
+	const householdUserIds = await listHouseholdUserIds(ownerUserId);
 	return db.query.food.findMany({
 		where: type
-			? and(eq(food.createdByUserId, ownerUserId), eq(food.type, type))
-			: eq(food.createdByUserId, ownerUserId),
+			? and(inArray(food.createdByUserId, householdUserIds), eq(food.type, type))
+			: inArray(food.createdByUserId, householdUserIds),
 		orderBy: (foodTable, { desc }) => [desc(foodTable.createdAt)]
 	});
 }
 
 export async function findFoodByIdForUser(id: string, ownerUserId: string) {
+	const householdUserIds = await listHouseholdUserIds(ownerUserId);
 	return db.query.food.findFirst({
-		where: and(eq(food.id, id), eq(food.createdByUserId, ownerUserId))
+		where: and(eq(food.id, id), inArray(food.createdByUserId, householdUserIds))
 	});
 }
 

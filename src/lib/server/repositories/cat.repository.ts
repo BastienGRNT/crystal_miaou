@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
-import { cat, catMember } from '$lib/server/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { cat, catMember, user } from '$lib/server/db/schema';
+import { and, eq, inArray } from 'drizzle-orm';
 import type {
 	CatActivityLevel,
 	CatSex,
@@ -83,6 +83,58 @@ export async function isCatMemberForUser(catId: string, userId: string): Promise
 	});
 
 	return membership !== undefined;
+}
+
+export async function listMembersForCat(catId: string) {
+	const memberships = await db.query.catMember.findMany({
+		where: eq(catMember.catId, catId),
+		with: { user: true },
+		orderBy: (member, { asc }) => [asc(member.joinedAt)]
+	});
+
+	return memberships.map((membership) => ({
+		membershipId: membership.id,
+		userId: membership.user.id,
+		name: membership.user.name,
+		email: membership.user.email,
+		joinedAt: membership.joinedAt
+	}));
+}
+
+export async function findUserByEmail(email: string) {
+	return db.query.user.findFirst({ where: eq(user.email, email) });
+}
+
+export async function addCatMember(catId: string, userId: string) {
+	const [created] = await db.insert(catMember).values({ id: crypto.randomUUID(), catId, userId }).returning();
+	return created;
+}
+
+export async function countMembersForCat(catId: string): Promise<number> {
+	const memberships = await db.query.catMember.findMany({ where: eq(catMember.catId, catId) });
+	return memberships.length;
+}
+
+export async function removeCatMemberByMembershipId(catId: string, membershipId: string): Promise<boolean> {
+	const deleted = await db
+		.delete(catMember)
+		.where(and(eq(catMember.id, membershipId), eq(catMember.catId, catId)))
+		.returning({ id: catMember.id });
+
+	return deleted.length > 0;
+}
+
+/** Tous les identifiants d'utilisateurs partageant au moins un chat avec `userId` (foyer élargi) — y
+ * compris `userId` lui-même. Sert à faire du catalogue produits une ressource partagée par foyer plutôt
+ * que strictement privée : deux personnes qui suivent le même chat ne doivent pas ressaisir en double
+ * les aliments déjà entrés par l'autre. */
+export async function listHouseholdUserIds(userId: string): Promise<string[]> {
+	const ownMemberships = await db.query.catMember.findMany({ where: eq(catMember.userId, userId) });
+	const catIds = ownMemberships.map((m) => m.catId);
+	if (catIds.length === 0) return [userId];
+
+	const coMemberships = await db.query.catMember.findMany({ where: inArray(catMember.catId, catIds) });
+	return [...new Set([userId, ...coMemberships.map((m) => m.userId)])];
 }
 
 export interface UpdateCatProfileInput {

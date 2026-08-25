@@ -23,11 +23,13 @@
 	import PageHeader from '$lib/components/molecules/PageHeader.svelte';
 	import EmptyState from '$lib/components/molecules/EmptyState.svelte';
 	import WeightHistoryPanel from '$lib/components/organisms/WeightHistoryPanel.svelte';
+	import HouseholdMembersPanel from '$lib/components/organisms/HouseholdMembersPanel.svelte';
 	import Cat from '@lucide/svelte/icons/cat';
 	import Venus from '@lucide/svelte/icons/venus';
 	import Mars from '@lucide/svelte/icons/mars';
 	import Zap from '@lucide/svelte/icons/zap';
 	import Scale from '@lucide/svelte/icons/scale';
+	import Users from '@lucide/svelte/icons/users';
 
 	interface CatRecord {
 		id: string;
@@ -41,7 +43,7 @@
 		specialCondition: CatSpecialCondition;
 	}
 
-	let { data }: { data: { cats: CatRecord[] } } = $props();
+	let { data }: { data: { cats: CatRecord[]; currentUserId: string } } = $props();
 
 	const activityLabels: Record<CatActivityLevel, string> = {
 		faible: 'Faible',
@@ -89,6 +91,7 @@
 	let loading = $state(false);
 
 	let weightModalCatId = $state<string | null>(null);
+	let householdModalCatId = $state<string | null>(null);
 
 	function openEditModal(cat: CatRecord) {
 		editingCatId = cat.id;
@@ -189,6 +192,9 @@
 					<Button variant="secondary" size="sm" onclick={() => (weightModalCatId = cat.id)}>
 						<Scale />Suivi de poids
 					</Button>
+					<Button variant="secondary" size="sm" onclick={() => (householdModalCatId = cat.id)}>
+						<Users />Foyer
+					</Button>
 				</div>
 			</Card>
 		{:else}
@@ -259,5 +265,11 @@
 {#if weightModalCatId}
 	<Modal title="Suivi de poids" onclose={() => (weightModalCatId = null)}>
 		<WeightHistoryPanel catId={weightModalCatId} />
+	</Modal>
+{/if}
+
+{#if householdModalCatId}
+	<Modal title="Foyer" onclose={() => (householdModalCatId = null)}>
+		<HouseholdMembersPanel catId={householdModalCatId} currentUserId={data.currentUserId} />
 	</Modal>
 {/if}
