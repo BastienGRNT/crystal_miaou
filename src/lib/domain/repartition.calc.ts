@@ -5,11 +5,13 @@
 // Sur le budget restant : si pâtée ET croquette sont actives, le budget est partagé par défaut à parts
 // égales entre les deux (spec section 3, Cas B — répartition libre, Option 1 ratio calorique) — la
 // pâtée ne doit jamais "maximiser" et laisser la croquette n'absorber qu'un résidu marginal. Si un seul
-// des deux est actif, il couvre seul tout le budget restant. La pâtée se raisonne en demi-paquets
-// (jamais un quart ou un tiers de paquet — ça ne se mesure pas sur une balance de cuisine domestique) ;
-// la croquette absorbe ensuite le budget calorique qu'il reste réellement après la pâtée. Chaque type a
-// un total figé pour la journée ; ce total est réparti entre les créneaux NON verrouillés de ce type
-// (à parts égales, alignées sur le demi-paquet pour la pâtée) — un créneau verrouillé (ajusté
+// des deux est actif, il couvre seul tout le budget restant. Le nombre de paquets de pâtée acheté/ouvert
+// pour la journée est un ENTIER (jamais un demi ou un tiers de paquet — la pâtée coûte cher, on n'ouvre
+// pas un paquet de plus pour un écart marginal) ; une fois ce total figé, il est en revanche réparti
+// entre les créneaux au demi-paquet près (une pâtée ouverte se partage en deux repas sans problème). La
+// croquette absorbe ensuite le budget calorique qu'il reste réellement après la pâtée, répartie entre
+// ses créneaux non verrouillés au prorata du temps d'attente avant le repas suivant (nuit exclue, cf.
+// `calculerPoidsGapCroquette`) plutôt qu'à parts strictement égales. Un créneau verrouillé (ajusté
 // manuellement ou déjà "donné") garde sa quantité, jamais recalculée.
 
 import { arrondirGrammes } from '$lib/domain/nutrition.calc';
@@ -43,13 +45,16 @@ export function repartirPaquetEnParts(totalG: number, nombreParts: number): numb
 	return parts;
 }
 
-/** Nombre de paquets de pâtée (par pas de demi-paquet — jamais de quart ou de tiers) qui couvrent au
- * mieux `cibleKcal` : arrondi au demi-paquet le plus proche, jamais moins d'un demi-paquet tant que la
- * pâtée est active (un chat qui reçoit de la pâtée en reçoit au moins un demi-paquet). */
+/** Nombre ENTIER de paquets de pâtée par jour qui couvre au mieux `cibleKcal` — jamais un demi ou un
+ * tiers de paquet, jamais moins d'un paquet tant que la pâtée est active. Arrondi "moitié vers le bas" :
+ * à égale distance entre N et N+1 paquets, on reste à N. La pâtée coûte cher, donc en cas d'hésitation
+ * réelle entre les deux (l'écart au DER ne permet pas de trancher), le score du jour (score.calc.ts)
+ * juge un léger déficit calorique moins sévèrement qu'un léger excès n'est pénalisé pour rien — mieux
+ * vaut ouvrir un paquet de moins et laisser la croquette (moins chère) absorber la différence. */
 export function calculerNombrePaquetsPatee(cibleKcal: number, kcalParPaquet: number): number {
 	if (kcalParPaquet <= 0) return 0;
-	const demiPaquets = Math.max(1, Math.round((cibleKcal / kcalParPaquet) * 2));
-	return demiPaquets / 2;
+	const ratio = cibleKcal / kcalParPaquet;
+	return Math.max(1, Math.ceil(ratio - 0.5));
 }
 
 /** Aligne une quantité de pâtée sur le pas de conditionnement : toujours un multiple d'un demi-paquet
@@ -76,6 +81,11 @@ export interface SlotEtat {
 	/** Verrouillé = quantité figée (ajustement manuel via slider, ou déjà coché "donné") : jamais recalculée. */
 	locked: boolean;
 	quantiteActuelleG: number;
+	/** Heure du créneau en minutes depuis minuit (0-1439). Optionnel : sans elle, un créneau croquette
+	 * revient à une part égale au lieu d'une part pondérée par l'attente avant le repas suivant (cf.
+	 * `calculerPoidsGapCroquette`) — dégradation silencieuse plutôt qu'erreur, l'heure n'est pas
+	 * indispensable pour le reste du calcul. */
+	heureMinutes?: number;
 }
 
 export interface AlimentActifInput {
@@ -118,16 +128,92 @@ interface DistributionResultat {
 	avertissement: string | null;
 }
 
-/** Répartit `totalG` sur les créneaux non verrouillés d'un même type, à parts égales, en préservant
- * la quantité des créneaux verrouillés. Alerte si le reste devient négatif (excès) ou si tous les
- * créneaux restants sont verrouillés sans que le total corresponde (le chat n'aura pas son compte).
- * `uniteAlignementG`, quand fourni (pâtée : demi-paquet), force chaque part non verrouillée à être un
- * multiple exact de cette unité plutôt qu'une part au gramme près. */
+const MINUTES_PAR_JOUR = 1440;
+/** Fenêtre nocturne : le chat dort, une longue attente sur ce créneau est normale et ne doit pas
+ * gonfler artificiellement la portion du repas qui la précède (contrairement à la même durée d'attente
+ * en pleine journée, qui elle traduit un vrai trou dans le rythme des repas). */
+const NUIT_DEBUT_MIN = 22 * 60;
+const NUIT_FIN_MIN = 7 * 60;
+/** Poids d'une minute nocturne dans le calcul de l'attente, relatif à une minute de jour (1.0). */
+const POIDS_MINUTE_NUIT = 0.4;
+
+function chevauchementMin(aDebut: number, aFin: number, bDebut: number, bFin: number): number {
+	return Math.max(0, Math.min(aFin, bFin) - Math.max(aDebut, bDebut));
+}
+
+/** Durée pondérée (en minutes) de l'intervalle [`debutMin`, `debutMin + dureeMin`) : les minutes qui
+ * tombent dans la fenêtre nocturne (22h-7h) comptent pour `POIDS_MINUTE_NUIT` au lieu de 1. `debutMin`
+ * dans [0, 1440), `dureeMin` dans (0, 1440] — au plus un passage de minuit à gérer. */
+function dureeAttentePondereeMin(debutMin: number, dureeMin: number): number {
+	const finJour1 = Math.min(debutMin + dureeMin, MINUTES_PAR_JOUR);
+	let nuitMin =
+		chevauchementMin(debutMin, finJour1, 0, NUIT_FIN_MIN) +
+		chevauchementMin(debutMin, finJour1, NUIT_DEBUT_MIN, MINUTES_PAR_JOUR);
+
+	const finJour2 = debutMin + dureeMin - MINUTES_PAR_JOUR;
+	if (finJour2 > 0) {
+		nuitMin += chevauchementMin(0, finJour2, 0, NUIT_FIN_MIN) + chevauchementMin(0, finJour2, NUIT_DEBUT_MIN, MINUTES_PAR_JOUR);
+	}
+
+	return dureeMin - nuitMin * (1 - POIDS_MINUTE_NUIT);
+}
+
+/** Poids de chaque créneau croquette non verrouillé, proportionnel au temps d'attente jusqu'au repas
+ * suivant (tous types confondus — un repas de pâtée nourrit le chat tout autant qu'une croquette) avec
+ * les minutes nocturnes comptées à `POIDS_MINUTE_NUIT` (spec conversation : "si il va y avoir 6 à 7h
+ * sans repas [...] proportionnellement"). Un créneau qui précède un long trou de la journée (ex: pas de
+ * repas entre 8h et 15h) reçoit ainsi plus qu'un créneau suivi de près par le prochain, sans que la même
+ * durée pendant la nuit ne produise le même effet. Renvoie une map vide si aucun créneau n'a d'heure
+ * connue (`heureMinutes` absent) — le fallback vers un partage égal se fait côté appelant. */
+export function calculerPoidsGapCroquette(slots: SlotEtat[]): Map<string, number> {
+	const poids = new Map<string, number>();
+	const avecHeure = slots.filter(
+		(s): s is SlotEtat & { heureMinutes: number } => s.heureMinutes !== undefined
+	);
+	if (avecHeure.length === 0) return poids;
+
+	const tries = [...avecHeure].sort((a, b) => a.heureMinutes - b.heureMinutes);
+
+	tries.forEach((slot, i) => {
+		if (slot.foodType !== 'croquette' || slot.locked) return;
+		const suivant = tries[(i + 1) % tries.length];
+		const brut = ((suivant.heureMinutes - slot.heureMinutes) % MINUTES_PAR_JOUR + MINUTES_PAR_JOUR) % MINUTES_PAR_JOUR;
+		const gap = brut || MINUTES_PAR_JOUR;
+		poids.set(slot.id, dureeAttentePondereeMin(slot.heureMinutes, gap));
+	});
+
+	return poids;
+}
+
+/** Répartit `totalG` sur `poids.length` parts proportionnelles à `poids`, en préservant la somme exacte
+ * (l'écart d'arrondi est corrigé sur la part la plus grosse, pour limiter la distorsion relative). */
+function repartirParPoids(totalG: number, poids: number[]): number[] {
+	const sommePoids = poids.reduce((somme, p) => somme + p, 0);
+	if (sommePoids <= 0) return repartirPaquetEnParts(totalG, poids.length);
+
+	const parts = poids.map((p) => arrondirGrammes((p / sommePoids) * totalG));
+	const sommeArrondie = parts.reduce((somme, p) => somme + p, 0);
+	const ecart = totalG - sommeArrondie;
+
+	let idxMax = 0;
+	for (let i = 1; i < parts.length; i++) if (parts[i] > parts[idxMax]) idxMax = i;
+	parts[idxMax] = arrondirGrammes(parts[idxMax] + ecart);
+
+	return parts;
+}
+
+/** Répartit `totalG` sur les créneaux non verrouillés d'un même type, en préservant la quantité des
+ * créneaux verrouillés. Alerte si le reste devient négatif (excès) ou si tous les créneaux restants sont
+ * verrouillés sans que le total corresponde (le chat n'aura pas son compte). `uniteAlignementG`, quand
+ * fourni (pâtée : demi-paquet), force chaque part non verrouillée à être un multiple exact de cette
+ * unité plutôt qu'une part au gramme près. `poidsParId`, quand fourni et non vide (croquette), répartit
+ * au prorata de ce poids au lieu de parts égales. */
 function distribuerType(
 	totalG: number,
 	slotsType: SlotEtat[],
 	labelType: string,
-	uniteAlignementG?: number
+	uniteAlignementG?: number,
+	poidsParId?: Map<string, number>
 ): DistributionResultat {
 	const quantites = new Map<string, number>();
 	const verrouilles = slotsType.filter((s) => s.locked);
@@ -169,7 +255,11 @@ function distribuerType(
 		return { quantites, avertissement: null };
 	}
 
-	const parts = repartirPaquetEnParts(reste, nonVerrouilles.length);
+	const poidsNonVerrouilles = nonVerrouilles.map((s) => poidsParId?.get(s.id) ?? 0);
+	const parts =
+		poidsParId && poidsNonVerrouilles.some((p) => p > 0)
+			? repartirParPoids(reste, poidsNonVerrouilles)
+			: repartirPaquetEnParts(reste, nonVerrouilles.length);
 	nonVerrouilles.forEach((s, i) => quantites.set(s.id, parts[i]));
 	return { quantites, avertissement: null };
 }
@@ -223,9 +313,11 @@ const LABELS_TYPE: Record<RepartitionFoodType, string> = {
 /** Calcule la quantité de chaque créneau du jour pour que, au total, le chat reçoive exactement son
  * besoin (DER) — ni trop, ni trop peu — tout en respectant les créneaux déjà verrouillés (ajustés
  * manuellement ou donnés). Friandise : quantité fixe choisie par l'utilisateur, retranchée en premier.
- * Pâtée : nombre de demi-paquets au plus proche du budget qui lui est alloué — la totalité du budget
- * restant si elle est seule, la moitié si la croquette est aussi active (répartition par défaut,
- * ajustable ensuite créneau par créneau). Croquette : complète ce qu'il reste réellement du budget. */
+ * Pâtée : nombre ENTIER de paquets au plus proche du budget qui lui est alloué (arrondi moitié vers le
+ * bas, cf. `calculerNombrePaquetsPatee`) — la totalité du budget restant si elle est seule, la moitié si
+ * la croquette est aussi active (répartition par défaut, ajustable ensuite créneau par créneau).
+ * Croquette : complète ce qu'il reste réellement du budget, réparti entre ses créneaux au prorata du
+ * temps d'attente jusqu'au repas suivant plutôt qu'à parts égales. */
 export function calculerRepartitionJournaliere(input: CalculerRepartitionInput): CalculerRepartitionResultat {
 	const avertissements: string[] = [];
 
@@ -288,6 +380,11 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 		? { patee: input.patee.packageSizeG / 2 }
 		: {};
 
+	const poidsGapCroquette = calculerPoidsGapCroquette(input.slots);
+	const poidsParType: Partial<Record<RepartitionFoodType, Map<string, number>>> = {
+		croquette: poidsGapCroquette
+	};
+
 	const quantitesParId = new Map<string, number>();
 	for (const foodType of Object.keys(totauxParType) as RepartitionFoodType[]) {
 		const slotsType = input.slots.filter((s) => s.foodType === foodType);
@@ -297,7 +394,8 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 			totauxParType[foodType],
 			slotsType,
 			LABELS_TYPE[foodType],
-			uniteAlignementParType[foodType]
+			uniteAlignementParType[foodType],
+			poidsParType[foodType]
 		);
 		for (const [id, quantite] of quantites) quantitesParId.set(id, quantite);
 		if (avertissement) avertissements.push(avertissement);

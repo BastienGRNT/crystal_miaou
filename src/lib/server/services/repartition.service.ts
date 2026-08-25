@@ -280,7 +280,8 @@ export async function calculerEtPersisterRepartitionJournaliere(
 		id: entry.id,
 		foodType: entry.food.type as RepartitionFoodType,
 		locked: (entry.locked || entry.validated) && !freshlyGeneratedValidatedIds.has(entry.id),
-		quantiteActuelleG: Number(entry.quantityG ?? 0)
+		quantiteActuelleG: Number(entry.quantityG ?? 0),
+		heureMinutes: entry.consumedAt.getHours() * 60 + entry.consumedAt.getMinutes()
 	}));
 
 	const resultat = calculerRepartitionJournaliere({

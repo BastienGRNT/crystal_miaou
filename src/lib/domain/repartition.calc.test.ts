@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	arrondirAuDemiPaquet,
 	calculerNombrePaquetsPatee,
+	calculerPoidsGapCroquette,
 	calculerRepartitionJournaliere,
 	repartirPaquetEnParts,
 	type SlotEtat
@@ -24,13 +25,18 @@ describe('repartirPaquetEnParts', () => {
 });
 
 describe('calculerNombrePaquetsPatee', () => {
-	it('arrondit au demi-paquet le plus proche', () => {
-		expect(calculerNombrePaquetsPatee(250, 100)).toBe(2.5); // 2.5 paquets tombe pile sur un demi-paquet
+	it('renvoie un nombre entier de paquets, jamais un demi ou un tiers', () => {
 		expect(calculerNombrePaquetsPatee(220, 100)).toBe(2);
+		expect(Number.isInteger(calculerNombrePaquetsPatee(167, 100))).toBe(true);
 	});
 
-	it('jamais moins d\'un demi-paquet tant que la pâtée est active', () => {
-		expect(calculerNombrePaquetsPatee(10, 100)).toBe(0.5);
+	it('arrondit moitié vers le bas (favorise le paquet en moins, la pâtée coûte cher)', () => {
+		expect(calculerNombrePaquetsPatee(250, 100)).toBe(2); // pile à mi-chemin entre 2 et 3 -> reste à 2
+		expect(calculerNombrePaquetsPatee(251, 100)).toBe(3);
+	});
+
+	it("jamais moins d'un paquet entier tant que la pâtée est active", () => {
+		expect(calculerNombrePaquetsPatee(10, 100)).toBe(1);
 	});
 });
 
@@ -39,6 +45,54 @@ describe('arrondirAuDemiPaquet', () => {
 		expect(arrondirAuDemiPaquet(74, 100)).toBe(50);
 		expect(arrondirAuDemiPaquet(76, 100)).toBe(100);
 		expect(arrondirAuDemiPaquet(0, 100)).toBe(0);
+	});
+});
+
+describe('calculerPoidsGapCroquette', () => {
+	it('un créneau suivi de près par le prochain repas pèse moins qu\'un créneau qui précède un long trou', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'matin', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'midi', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 9 * 60 }, // 1h après le matin
+			{ id: 'soir', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 } // 11h après midi
+		];
+
+		const poids = calculerPoidsGapCroquette(slots);
+
+		expect(poids.get('matin')).toBeLessThan(poids.get('midi')!);
+		expect(poids.get('midi')).toBeGreaterThan(poids.get('soir')!);
+	});
+
+	it('une attente nocturne pèse moins qu\'une attente diurne de même durée', () => {
+		const slotsJour: SlotEtat[] = [
+			{ id: 'a', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 },
+			{ id: 'b', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 15 * 60 } // 7h plus tard, en journée
+		];
+		const slotsNuit: SlotEtat[] = [
+			{ id: 'a', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 21 * 60 },
+			{ id: 'b', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 4 * 60 } // 7h plus tard, en pleine nuit
+		];
+
+		const poidsJour = calculerPoidsGapCroquette(slotsJour).get('a')!;
+		const poidsNuit = calculerPoidsGapCroquette(slotsNuit).get('a')!;
+
+		expect(poidsNuit).toBeLessThan(poidsJour);
+	});
+
+	it('un créneau verrouillé ne reçoit pas de poids (sa quantité ne sera pas touchée de toute façon)', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'a', foodType: 'croquette', locked: true, quantiteActuelleG: 20, heureMinutes: 8 * 60 },
+			{ id: 'b', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 }
+		];
+
+		const poids = calculerPoidsGapCroquette(slots);
+
+		expect(poids.has('a')).toBe(false);
+		expect(poids.has('b')).toBe(true);
+	});
+
+	it('renvoie une map vide si aucun créneau n\'a d\'heure connue', () => {
+		const slots: SlotEtat[] = [{ id: 'a', foodType: 'croquette', locked: false, quantiteActuelleG: 0 }];
+		expect(calculerPoidsGapCroquette(slots).size).toBe(0);
 	});
 });
 
@@ -62,6 +116,29 @@ describe('calculerRepartitionJournaliere', () => {
 		expect(resultat.avertissements).toHaveLength(0);
 	});
 
+	it('croquette avec heures connues : le créneau qui précède le plus long trou reçoit la plus grosse part', () => {
+		const slots: SlotEtat[] = [
+			{ id: 'matin', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 8 * 60 }, // 1h avant "midi"
+			{ id: 'midi', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 9 * 60 }, // 11h avant "soir"
+			{ id: 'soir', foodType: 'croquette', locked: false, quantiteActuelleG: 0, heureMinutes: 20 * 60 } // 12h avant "matin" du lendemain
+		];
+
+		const resultat = calculerRepartitionJournaliere({
+			der: 300,
+			croquette: { kcal100g: 375 },
+			patee: null,
+			friandise: null,
+			slots
+		});
+
+		const total = resultat.slots.reduce((s, sl) => s + sl.quantiteG, 0);
+		const midi = resultat.slots.find((s) => s.id === 'midi')!.quantiteG;
+		const matin = resultat.slots.find((s) => s.id === 'matin')!.quantiteG;
+
+		expect(midi).toBeGreaterThan(matin);
+		expect(total).toBeCloseTo(80, 0); // 300 kcal / 3.75 kcal/g
+	});
+
 	it('pâtée + croquette : le budget est partagé (50/50 par défaut), pas maximisé sur la pâtée', () => {
 		const slots: SlotEtat[] = [
 			{ id: 'p1', foodType: 'patee', locked: false, quantiteActuelleG: 0 },
@@ -76,11 +153,11 @@ describe('calculerRepartitionJournaliere', () => {
 			slots
 		});
 
-		// Budget pâtée = 300 * 0.5 = 150 kcal ; kcal/paquet = 90 -> 150/90 = 1.67 -> arrondi au demi-paquet = 1.5
-		expect(resultat.nombrePaquetsPatee).toBe(1.5);
-		expect(resultat.slots.find((s) => s.id === 'p1')?.quantiteG).toBe(150);
-		// Croquette absorbe le vrai reste : 300 - 135 (135 = 150g pâtée * 90/100) = 165 kcal -> 44g
-		expect(resultat.slots.find((s) => s.id === 'c1')?.quantiteG).toBeCloseTo(44, 0);
+		// Budget pâtée = 300 * 0.5 = 150 kcal ; kcal/paquet = 90 -> 150/90 = 1.67 -> arrondi à l'entier = 2 paquets
+		expect(resultat.nombrePaquetsPatee).toBe(2);
+		expect(resultat.slots.find((s) => s.id === 'p1')?.quantiteG).toBe(200);
+		// Croquette absorbe le vrai reste : 300 - 180 (180 = 200g pâtée * 90/100) = 120 kcal -> 32g
+		expect(resultat.slots.find((s) => s.id === 'c1')?.quantiteG).toBeCloseTo(32, 0);
 		expect(resultat.avertissements).toHaveLength(0);
 	});
 

@@ -136,9 +136,11 @@ Principe : l'utilisateur ne raisonne jamais en grammes ou en calories, seulement
 et "à quelle heure". Le moteur calcule tout le reste pour que la journée couvre exactement le DER —
 ni trop, ni trop peu — sauf choix explicite de l'utilisateur (avec avertissement).
 
-1. **Pâtée** : nombre de paquets entiers/jour calculé automatiquement (arrondi au plus proche du DER,
-   jamais 0 tant que la pâtée est active). C'est une contrainte dure — la pâtée ne se donne pas "en
-   vrac".
+1. **Pâtée** : nombre de paquets **entiers**/jour (`calculerNombrePaquetsPatee`), jamais un demi ou un
+   tiers de paquet, jamais 0 tant que la pâtée est active — c'est une contrainte dure, la pâtée ne se
+   donne pas "en vrac". Arrondi "moitié vers le bas" (à égale distance entre N et N+1 paquets, on reste
+   à N) : la pâtée coûte cher, en cas d'hésitation réelle on ouvre un paquet de moins et on laisse la
+   croquette, moins chère, absorber la différence.
 2. **Friandise** : quantité totale/jour choisie par l'utilisateur (pas calculée — c'est un extra, pas
    une variable nutritionnelle).
 3. **Croquette** : absorbe le budget calorique restant (DER − pâtée − friandise). Si ce budget est
@@ -149,7 +151,13 @@ ni trop, ni trop peu — sauf choix explicite de l'utilisateur (avec avertisseme
    recalculée. Le reste (total du type − somme des créneaux verrouillés) est réparti sur les créneaux
    restants, en préservant la somme exacte (pas de dérive d'arrondi). Si le reste devient négatif ou si
    tous les créneaux restants sont verrouillés sans couvrir le besoin, un avertissement est renvoyé au
-   lieu d'une valeur silencieusement fausse.
+   lieu d'une valeur silencieusement fausse. **Exception croquette** : la répartition n'est pas à parts
+   égales mais pondérée par l'attente jusqu'au repas suivant, tous types confondus
+   (`calculerPoidsGapCroquette`, `repartition.calc.ts`) — un créneau qui précède un long trou dans la
+   journée reçoit proportionnellement plus qu'un créneau suivi de près par le prochain repas, sauf la
+   nuit (22h-7h) où l'attente compte pour 40% de sa durée réelle : dormir longtemps sans manger est
+   normal pour le chat, ça ne doit pas gonfler artificiellement le repas du soir. Nécessite l'heure du
+   créneau (`heureMinutes`) ; sans elle, repli silencieux sur un partage égal.
 5. **Persistance** : `calculerEtPersisterRepartitionJournaliere` (`repartition.service.ts`) recalcule et
    **enregistre immédiatement** en base les quantités des créneaux non verrouillés à chaque appel de
    `GET /api/repartition` — c'est ce qui rend les ajustements visibles par tout le foyer sans dépendre
