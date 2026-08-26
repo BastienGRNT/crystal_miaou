@@ -1,0 +1,12 @@
+<!--
+  À fusionner dans android/app/src/main/AndroidManifest.xml, à l'intérieur de la balise <application>,
+  après la génération du projet par `flutter create` (voir mobile/README.md).
+-->
+<receiver android:name=".HomeWidgetProvider" android:exported="true">
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+    </intent-filter>
+    <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/home_widget_info" />
+</receiver>

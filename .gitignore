@@ -1,12 +1,12 @@
 node_modules
 
-# Output
+# Output (app/)
 .output
 .vercel
 .netlify
 .wrangler
-/.svelte-kit
-/build
+app/.svelte-kit
+app/build
 
 # OS
 .DS_Store
@@ -24,4 +24,19 @@ vite.config.ts.timestamp-*
 .idea/
 
 # OCR (données de langue Tesseract, téléchargées via `npm run setup:ocr`)
-static/tessdata/
+app/static/tessdata/
+
+# Flutter / Android (mobile/)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/app/build/
+mobile/android/captures/
+mobile/android/gradlew.log
+mobile/ios/

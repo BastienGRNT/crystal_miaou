@@ -3,13 +3,28 @@
 Application de gestion de la nutrition pour chats : suivi des apports alimentaires, calcul automatique
 des besoins nutritionnels recommandés, et alerte si les apports réels s'écartent des recommandations.
 
-Une app mobile consommera plus tard **les mêmes routes API** que le frontend web. Toute décision
+Une app mobile Android native consomme **les mêmes routes API** que le frontend web. Toute décision
 d'architecture découle de cette contrainte.
+
+## Monorepo
+
+- [`app/`](./app) — web + API SvelteKit. Toutes les règles de ce fichier concernant `src/`,
+  `routes/`, `lib/` sont relatives à `app/` (ex. `src/lib/domain` = `app/src/lib/domain`).
+- [`mobile/`](./mobile) — app Android **Flutter native** (pas de webview/Chromium), client pur de
+  l'API de `app/` — aucune logique métier, aucun accès DB, uniquement des appels HTTP vers
+  `/api/...` avec un token bearer (voir `app/src/lib/server/auth.ts`, plugin `bearer`). Build APK
+  100% local (`flutter build apk`, Gradle interne, pas de build cloud). Widgets d'écran d'accueil
+  (`home_widget`) et notifications locales (`flutter_local_notifications`, pas de broker/FCM).
+  Design mobile-first inspiré du web (mêmes couleurs/polices, cf. `app/src/routes/layout.css`),
+  mais layouts et composants propres, pas de copie des composants `.svelte` du web.
+- `specs/` — spécifications transverses aux deux apps.
 
 ## Stack
 
-- **SvelteKit** (TypeScript strict) — framework web
-- **Better Auth** — authentification (`src/lib/server/auth.ts`, client `src/lib/auth-client.ts`)
+- **SvelteKit** (TypeScript strict) — web (`app/`, adapter-node)
+- **Flutter** — app Android native (`mobile/`), build APK 100% local, aucune dépendance cloud
+- **Better Auth** — authentification (`src/lib/server/auth.ts`, client web `src/lib/auth-client.ts`) ;
+  cookies de session pour le web, plugin `bearer` (token `Authorization`) pour le mobile
 - **Tailwind CSS** — style
 - **PostgreSQL + Drizzle ORM** — persistance, syntaxe Relational Queries
 - **adapter-node** — cible de déploiement
@@ -29,6 +44,8 @@ d'architecture découle de cette contrainte.
   calcul, aucune requête Drizzle, aucune règle métier.
 
 ## Arborescence
+
+Tout ce qui suit est relatif à `app/` (donc `app/src/routes/api/...`, etc.).
 
 ```
 src/
@@ -69,7 +86,7 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
 
 ## Règles absolues
 
-1. **Sécurité SvelteKit** : ne jamais importer `src/lib/server/**` dans un fichier `.svelte` ou tout
+1. **Sécurité SvelteKit** : ne jamais importer `app/src/lib/server/**` dans un fichier `.svelte` ou tout
    code exécuté côté client (SvelteKit lèverait de toute façon une erreur de build, mais il ne faut
    même pas essayer).
 2. **TypeScript strict** : `any` interdit. Tous les retours de fonctions publiques (services,

@@ -4,12 +4,22 @@ Application de gestion de la nutrition pour chats : suivi des apports alimentair
 
 Voir [`CLAUDE.md`](./CLAUDE.md) pour l'architecture détaillée, les conventions et les règles du projet.
 
+Monorepo : [`app/`](./app) (web + API SvelteKit) et [`mobile/`](./mobile) (app Android Flutter,
+client pur de l'API de `app/`).
+
 ## Prérequis
 
 - Node.js 20+
 - Docker (pour la base PostgreSQL locale)
+- Flutter SDK + Android Studio/SDK (pour builder l'app mobile, voir [`mobile/README.md`](./mobile/README.md))
 
-## Démarrage
+## Démarrage (web + API)
+
+Toutes les commandes ci-dessous s'exécutent depuis `app/` :
+
+```sh
+cd app
+```
 
 1. Installer les dépendances :
 
@@ -50,9 +60,9 @@ langue (français + anglais) ne sont pas committées dans le repo ; télécharge
 npm run setup:ocr
 ```
 
-Ce script a besoin d'une connexion internet (téléchargement dans `static/tessdata/`), mais l'app
+Ce script a besoin d'une connexion internet (téléchargement dans `app/static/tessdata/`), mais l'app
 elle-même n'effectue ensuite aucun appel réseau pour l'OCR. À relancer après un clone ou dans le
-pipeline de déploiement — pas nécessaire si `static/tessdata/` est déjà peuplé.
+pipeline de déploiement — pas nécessaire si `app/static/tessdata/` est déjà peuplé.
 
 ## Scripts utiles
 
@@ -70,6 +80,11 @@ pipeline de déploiement — pas nécessaire si `static/tessdata/` est déjà pe
 | `npm run db:studio`   | Ouvre Drizzle Studio                               |
 | `npm run setup:ocr`   | Télécharge les données de langue OCR (une fois)    |
 
+## App mobile Android
+
+Voir [`mobile/README.md`](./mobile/README.md) pour builder l'APK. En bref : app Flutter native
+(pas de webview), build 100% local via `flutter build apk`, aucune étape cloud.
+
 ## Stack
 
-SvelteKit (TypeScript strict) · Better Auth · Tailwind CSS · PostgreSQL · Drizzle ORM
+SvelteKit (TypeScript strict) · Better Auth · Tailwind CSS · PostgreSQL · Drizzle ORM · Flutter (mobile)
