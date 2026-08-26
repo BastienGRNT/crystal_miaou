@@ -39,6 +39,7 @@
 		emEstimee: boolean;
 		emSuspecte: boolean;
 		packageSizeG: string | null;
+		doseDistributeurG: string | null;
 		proteinesG100g: string;
 		lipidesG100g: string;
 		humiditeG100g: string;
@@ -91,6 +92,7 @@
 	let type = $state<FoodType>('croquette');
 	let emKcal100g = $state('');
 	let packageSizeG = $state('');
+	let doseDistributeurG = $state('');
 	let proteinesG100g = $state('');
 	let lipidesG100g = $state('');
 	let humiditeG100g = $state('');
@@ -147,6 +149,7 @@
 		type = 'croquette';
 		emKcal100g = '';
 		packageSizeG = '';
+		doseDistributeurG = '';
 		proteinesG100g = '';
 		lipidesG100g = '';
 		humiditeG100g = '';
@@ -190,6 +193,7 @@
 		type = food.type;
 		emKcal100g = food.emKcal100g;
 		packageSizeG = food.packageSizeG ?? '';
+		doseDistributeurG = food.doseDistributeurG ?? '';
 		proteinesG100g = food.proteinesG100g;
 		lipidesG100g = food.lipidesG100g;
 		// Vide (pas la valeur stockée) si c'était une estimation générique : sinon la ré-enregistrer sans
@@ -221,6 +225,7 @@
 			type,
 			emKcal100g: emKcal100g === '' ? null : Number(emKcal100g),
 			packageSizeG: packageSizeG === '' ? null : Number(packageSizeG),
+			doseDistributeurG: doseDistributeurG === '' ? null : Number(doseDistributeurG),
 			proteinesG100g: Number(proteinesG100g),
 			lipidesG100g: Number(lipidesG100g),
 			humiditeG100g: humiditeG100g === '' ? null : Number(humiditeG100g),
@@ -369,6 +374,21 @@
 				</FormField>
 				<p class="text-sm text-muted-foreground">
 					Permet de fractionner le paquet en parts égales entre les repas de la journée (1/2, 1/3...).
+				</p>
+			{/if}
+
+			{#if type === 'croquette'}
+				<FormField
+					label="Poids d'une dose de distributeur (g, optionnel)"
+					for="doseDistributeurG"
+					error={errors.doseDistributeurG}
+				>
+					<Input id="doseDistributeurG" type="number" step="0.5" min="0" bind:value={doseDistributeurG} />
+				</FormField>
+				<p class="text-sm text-muted-foreground">
+					Si un distributeur automatique donne cette croquette, indiquez le poids d'une dose/cup —
+					le distributeur ne sait donner qu'un nombre entier de doses, pas une quantité libre au
+					gramme près. Laissez vide si vous ne servez cette croquette qu'à la main.
 				</p>
 			{/if}
 

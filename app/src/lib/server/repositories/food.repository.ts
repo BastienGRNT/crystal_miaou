@@ -11,6 +11,7 @@ export interface FoodRecordInput {
 	emKcal100g: number;
 	emEstimee: boolean;
 	packageSizeG: number | null;
+	doseDistributeurG: number | null;
 	proteinesG100g: number;
 	lipidesG100g: number;
 	humiditeG100g: number;
@@ -60,6 +61,7 @@ export async function createFood(input: FoodRecordInput, ownerUserId: string) {
 			emKcal100g: toNumeric(input.emKcal100g),
 			emEstimee: input.emEstimee,
 			packageSizeG: input.packageSizeG === null ? null : toNumeric(input.packageSizeG),
+			doseDistributeurG: input.doseDistributeurG === null ? null : toNumeric(input.doseDistributeurG),
 			proteinesG100g: toNumeric(input.proteinesG100g),
 			lipidesG100g: toNumeric(input.lipidesG100g),
 			humiditeG100g: toNumeric(input.humiditeG100g),
@@ -89,6 +91,7 @@ export async function updateFood(id: string, ownerUserId: string, input: FoodRec
 			emKcal100g: toNumeric(input.emKcal100g),
 			emEstimee: input.emEstimee,
 			packageSizeG: input.packageSizeG === null ? null : toNumeric(input.packageSizeG),
+			doseDistributeurG: input.doseDistributeurG === null ? null : toNumeric(input.doseDistributeurG),
 			proteinesG100g: toNumeric(input.proteinesG100g),
 			lipidesG100g: toNumeric(input.lipidesG100g),
 			humiditeG100g: toNumeric(input.humiditeG100g),

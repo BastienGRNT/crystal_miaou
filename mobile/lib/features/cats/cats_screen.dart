@@ -4,10 +4,6 @@ import '../../core/models/cat.dart';
 import '../../core/theme.dart';
 import 'cats_service.dart';
 
-/// Valeurs fermées d'ajustement DER — miroir de CAT_DER_AJUSTEMENT_PCT_VALEURS
-/// (app/src/lib/domain/cat.calc.ts). Ne jamais recalculer côté mobile, toujours PATCH /api/cats/[id].
-const _derAjustementValeurs = [-10, -5, 0, 5, 10];
-
 class CatsScreen extends StatefulWidget {
   const CatsScreen({super.key, required this.onSelectCat});
 
@@ -43,6 +39,7 @@ class _CatsScreenState extends State<CatsScreen> {
               itemCount: service.cats.length,
               itemBuilder: (context, i) => _CatCard(
                 cat: service.cats[i],
+                derAjustementPctValeurs: service.derAjustementPctValeurs,
                 onOpen: () => widget.onSelectCat(service.cats[i]),
                 onAdjustDer: (pct) => service.setDerAjustementPct(service.cats[i].id, pct),
               ),
@@ -55,9 +52,15 @@ class _CatsScreenState extends State<CatsScreen> {
 }
 
 class _CatCard extends StatelessWidget {
-  const _CatCard({required this.cat, required this.onOpen, required this.onAdjustDer});
+  const _CatCard({
+    required this.cat,
+    required this.derAjustementPctValeurs,
+    required this.onOpen,
+    required this.onAdjustDer,
+  });
 
   final Cat cat;
+  final List<int> derAjustementPctValeurs;
   final VoidCallback onOpen;
   final ValueChanged<int> onAdjustDer;
 
@@ -89,7 +92,7 @@ class _CatCard extends StatelessWidget {
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
-              children: _derAjustementValeurs.map((pct) {
+              children: derAjustementPctValeurs.map((pct) {
                 final selected = cat.derAjustementPct == pct;
                 return ChoiceChip(
                   label: Text(pct == 0 ? 'Normal' : '${pct > 0 ? '+' : ''}$pct%'),

@@ -275,6 +275,12 @@ export const food = pgTable(
 		// Poids d'un paquet/sachet commercial, en grammes. Utilisé pour la pâtée : permet de fractionner
 		// un paquet en parts égales entre les repas de la journée plutôt que de saisir une quantité libre.
 		packageSizeG: numeric('package_size_g', { precision: 6, scale: 2 }),
+		// Poids d'une dose/cup du distributeur automatique, en grammes — les distributeurs comptent en
+		// doses, pas en grammes. Renseigné uniquement pour une croquette utilisée avec un distributeur
+		// automatique (routine avec distributionMode='distributeur_automatique') : permet à la répartition
+		// du menu du jour d'arrondir chaque créneau distributeur à un nombre entier de doses (cf.
+		// alignerDosesDistributeur, repartition.calc.ts).
+		doseDistributeurG: numeric('dose_distributeur_g', { precision: 6, scale: 2 }),
 		proteinesG100g: numeric('proteines_g_100g', { precision: 5, scale: 2 }).notNull(),
 		lipidesG100g: numeric('lipides_g_100g', { precision: 5, scale: 2 }).notNull(),
 		// Contrairement à protéines/lipides/fibres/cendres, l'humidité n'est PAS légalement obligatoire

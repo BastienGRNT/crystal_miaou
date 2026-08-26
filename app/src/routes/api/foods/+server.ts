@@ -37,6 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		type: FOOD_TYPE_VALUES.includes(body.type) ? body.type : 'croquette',
 		emKcal100g: parseNullableNumber(body.emKcal100g),
 		packageSizeG: parseNullableNumber(body.packageSizeG),
+		doseDistributeurG: parseNullableNumber(body.doseDistributeurG),
 		proteinesG100g: Number(body.proteinesG100g),
 		lipidesG100g: Number(body.lipidesG100g),
 		humiditeG100g: parseNullableNumber(body.humiditeG100g),

@@ -110,6 +110,11 @@ export interface SlotEtat {
 	 * `calculerPoidsGapCroquette`) — dégradation silencieuse plutôt qu'erreur, l'heure n'est pas
 	 * indispensable pour le reste du calcul. */
 	heureMinutes?: number;
+	/** Poids d'une dose du distributeur automatique pour l'aliment de ce créneau, en grammes — renseigné
+	 * uniquement pour un créneau croquette dont le mode de distribution est 'distributeur_automatique' et
+	 * dont l'aliment actif a une dose configurée (cf. `alignerDosesDistributeur`). Un distributeur ne sait
+	 * donner qu'un nombre ENTIER de doses, jamais une quantité libre au gramme près. */
+	doseDistributeurG?: number;
 }
 
 export interface AlimentActifInput {
@@ -441,6 +446,54 @@ function appliquerCorrectionProportionnelle(
 	return arrondirGrammes(ecartKcalACorriger - kcalAppliquee);
 }
 
+/** Arrondit une quantité de croquette au multiple ENTIER de dose le plus proche — un distributeur
+ * automatique ne sait donner qu'un nombre entier de doses/cups, jamais une quantité libre au gramme
+ * près. Jamais 0 tant que `quantiteG` était positive (au moins 1 dose), pour ne pas faire disparaître
+ * silencieusement un repas voulu. Seule source de vérité pour cette règle : utilisée à la fois par le
+ * moteur de répartition du jour (`alignerDosesDistributeur`) et par le service d'ajustement manuel d'un
+ * créneau (`mealEntry.service.ts`, PATCH `/api/meal-entries/:id`) — un ajustement à la main envoyé par
+ * le client (web ou mobile) doit retomber sur la même grille que le calcul automatique. */
+export function arrondirALaDose(quantiteG: number, doseG: number): number {
+	if (doseG <= 0) return quantiteG;
+	const nombreDoses = quantiteG > 0 ? Math.max(1, Math.round(quantiteG / doseG)) : 0;
+	return arrondirGrammes(nombreDoses * doseG);
+}
+
+/** Arrondit chaque créneau croquette non verrouillé équipé d'un distributeur automatique
+ * (`doseDistributeurG` connu) à un multiple ENTIER de sa dose (cf. `arrondirALaDose`). L'écart introduit
+ * par cet arrondi est repris/redonné en priorité sur les autres créneaux croquette non verrouillés SANS
+ * distributeur (gamelle) du même jour, au prorata de leur quantité actuelle, pour préserver le total du
+ * jour aussi précisément que possible ; s'il n'y en a aucun, l'écart est accepté tel quel (même logique
+ * que le conditionnement par paquet entier de la pâtée, cf. `calculerNombrePaquetsPatee`). Modifie
+ * `quantitesParId` en place. */
+function alignerDosesDistributeur(slots: SlotEtat[], quantitesParId: Map<string, number>): void {
+	const croquetteNonVerrouillees = slots.filter((s) => s.foodType === 'croquette' && !s.locked);
+	const slotsDose = croquetteNonVerrouillees.filter((s) => s.doseDistributeurG && s.doseDistributeurG > 0);
+	if (slotsDose.length === 0) return;
+
+	let ecartTotal = 0;
+	for (const slot of slotsDose) {
+		const actuelle = quantitesParId.get(slot.id) ?? 0;
+		const nouvelle = arrondirALaDose(actuelle, slot.doseDistributeurG!);
+		ecartTotal += nouvelle - actuelle;
+		quantitesParId.set(slot.id, nouvelle);
+	}
+
+	if (Math.abs(ecartTotal) <= TOLERANCE_G) return;
+
+	const absorbeurs = croquetteNonVerrouillees.filter((s) => !s.doseDistributeurG || s.doseDistributeurG <= 0);
+	if (absorbeurs.length === 0) return;
+
+	const grammesActuels = absorbeurs.map((s) => quantitesParId.get(s.id) ?? 0);
+	const totalActuel = grammesActuels.reduce((somme, v) => somme + v, 0);
+	if (totalActuel <= TOLERANCE_G) return;
+
+	const facteur = Math.max(0, (totalActuel - ecartTotal) / totalActuel);
+	absorbeurs.forEach((s, i) => {
+		quantitesParId.set(s.id, arrondirGrammes(Math.max(0, grammesActuels[i] * facteur)));
+	});
+}
+
 const LABELS_TYPE: Record<RepartitionFoodType, string> = {
 	croquette: 'croquette',
 	patee: 'pâtée',
@@ -615,6 +668,10 @@ export function calculerRepartitionJournaliere(input: CalculerRepartitionInput):
 				`Même après réajustement automatique, la journée reste écartée du besoin de ${Math.round(Math.abs(ecartRestant))} kcal : pas assez de créneaux non verrouillés pour compenser entièrement. Déverrouillez-en un ou réinitialisez la journée.`
 			);
 		}
+	}
+
+	if (input.croquette) {
+		alignerDosesDistributeur(input.slots, quantitesParId);
 	}
 
 	return {

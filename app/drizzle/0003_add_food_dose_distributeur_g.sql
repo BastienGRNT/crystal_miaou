@@ -1,0 +1,1 @@
+ALTER TABLE "food" ADD COLUMN "dose_distributeur_g" numeric(6, 2);

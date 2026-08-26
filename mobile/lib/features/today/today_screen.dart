@@ -45,6 +45,10 @@ class _TodayScreenState extends State<TodayScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _ScoreCard(jour: jour),
+                if (jour.recapCroquette != null && jour.recapCroquette!.distributeurAutomatiqueG > 0) ...[
+                  const SizedBox(height: 12),
+                  _RecapCroquetteCard(recap: jour.recapCroquette!),
+                ],
                 if (jour.avertissements.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ...jour.avertissements.map(
@@ -106,6 +110,45 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
+class _RecapCroquetteCard extends StatelessWidget {
+  const _RecapCroquetteCard({required this.recap});
+
+  final RecapDistributionCroquette recap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Croquette — qui distribue quoi', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined, size: 18, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text('${recap.distributeurAutomatiqueG.toStringAsFixed(0)} g déjà dans le distributeur'),
+              ],
+            ),
+            if (recap.aPreparerG > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.back_hand_outlined, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text('${recap.aPreparerG.toStringAsFixed(0)} g à préparer vous-même'),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MealTile extends StatelessWidget {
   const _MealTile({required this.repas, required this.onToggle});
 
@@ -131,7 +174,8 @@ class _MealTile extends StatelessWidget {
         ),
         title: Text('$heure — ${repas.food.name}'),
         subtitle: Text(
-          '${repas.quantiteG.toStringAsFixed(1)} g · ${repas.kcal.toStringAsFixed(0)} kcal'
+          '${repas.doses != null ? '${repas.doses} dose${repas.doses! > 1 ? 's' : ''} (${repas.quantiteG.toStringAsFixed(0)} g)' : '${repas.quantiteG.toStringAsFixed(1)} g'}'
+          ' · ${repas.kcal.toStringAsFixed(0)} kcal'
           '${repas.food.brand != null ? ' · ${repas.food.brand}' : ''}',
         ),
         trailing: Checkbox(

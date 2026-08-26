@@ -50,6 +50,7 @@ function toRecordInput(input: FoodInput) {
 		emKcal100g: resolved.emKcal100g,
 		emEstimee: resolved.emEstimee,
 		packageSizeG: input.packageSizeG,
+		doseDistributeurG: input.doseDistributeurG,
 		proteinesG100g: input.proteinesG100g,
 		lipidesG100g: input.lipidesG100g,
 		humiditeG100g: resolvedHumidite.humiditeG100g,

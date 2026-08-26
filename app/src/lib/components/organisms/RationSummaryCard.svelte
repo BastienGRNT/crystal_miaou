@@ -5,6 +5,8 @@
 	import Drumstick from '@lucide/svelte/icons/drumstick';
 	import Fish from '@lucide/svelte/icons/fish';
 	import Flame from '@lucide/svelte/icons/flame';
+	import Container from '@lucide/svelte/icons/container';
+	import Hand from '@lucide/svelte/icons/hand';
 	import type { RepartitionOkResponse } from './DailyMealSchedule.svelte';
 
 	type FoodType = 'croquette' | 'patee' | 'friandise';
@@ -70,4 +72,22 @@
 			</span>
 		{/if}
 	</p>
+
+	{#if repartition.recapCroquette && repartition.recapCroquette.distributeurAutomatiqueG > 0}
+		<p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+			<span class="font-heading text-xs font-semibold tracking-wide text-foreground uppercase">
+				Croquette — qui distribue quoi
+			</span>
+			<span class="inline-flex items-center gap-1.5">
+				<Container class="size-4" />
+				{Math.round(repartition.recapCroquette.distributeurAutomatiqueG)} g déjà dans le distributeur
+			</span>
+			{#if repartition.recapCroquette.aPreparerG > 0}
+				<span class="inline-flex items-center gap-1.5">
+					<Hand class="size-4" />
+					{Math.round(repartition.recapCroquette.aPreparerG)} g à préparer vous-même
+				</span>
+			{/if}
+		</p>
+	{/if}
 </Card>

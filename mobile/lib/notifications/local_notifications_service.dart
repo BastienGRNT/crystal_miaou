@@ -31,7 +31,7 @@ class LocalNotificationsService {
 
     final json = await api.get('/api/daily-plans', query: {'catId': catId});
     final plans = (json as Map<String, dynamic>)['dailyPlans'] as List;
-    final active = plans.cast<Map<String, dynamic>>().where((p) => p['active'] == true);
+    final active = plans.cast<Map<String, dynamic>>().where((p) => p['isActive'] == true);
     if (active.isEmpty) return;
 
     final slots = (active.first['slots'] as List).cast<Map<String, dynamic>>();

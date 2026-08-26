@@ -22,6 +22,13 @@
       "when": 1787695953764,
       "tag": "0002_add_cat_der_ajustement_pct",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787696000000,
+      "tag": "0003_add_food_dose_distributeur_g",
+      "breakpoints": true
     }
   ]
 }

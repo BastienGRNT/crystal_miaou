@@ -8,6 +8,10 @@ class CatsService extends ChangeNotifier {
   final ApiClient _api;
 
   List<Cat> cats = [];
+  // Valeurs fermées d'ajustement DER, renvoyées par GET /api/cats (miroir de
+  // CAT_DER_AJUSTEMENT_PCT_VALEURS, app/src/lib/domain/cat.calc.ts) — jamais codées en dur ici, sinon
+  // rien ne garantit qu'elles restent identiques à ce que le web propose (CLAUDE.md règle 9).
+  List<int> derAjustementPctValeurs = [];
   bool loading = false;
   String? error;
 
@@ -16,8 +20,9 @@ class CatsService extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final json = await _api.get('/api/cats');
-      cats = ((json as Map<String, dynamic>)['cats'] as List).map((e) => Cat.fromJson(e as Map<String, dynamic>)).toList();
+      final json = await _api.get('/api/cats') as Map<String, dynamic>;
+      cats = (json['cats'] as List).map((e) => Cat.fromJson(e as Map<String, dynamic>)).toList();
+      derAjustementPctValeurs = (json['derAjustementPctValeurs'] as List).map((e) => (e as num).toInt()).toList();
     } on ApiException catch (e) {
       error = e.message;
     } finally {

@@ -107,6 +107,25 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
    en local (client ou serveur self-hosted), jamais via un appel à un service externe (OpenAI Vision,
    Google Vision, etc.). Le résultat d'un scan n'est jamais présenté comme définitif : une étape de
    correction manuelle par l'utilisateur est obligatoire avant sauvegarde.
+9. **Zéro dérivation métier côté client, web ou mobile** : un composant `.svelte` ou un widget Flutter
+   n'a jamais le droit de recalculer, arrondir, ou agréger une valeur qui a un sens métier (quantités,
+   doses, paquets, kcal, totaux par catégorie, pourcentages...) à partir de données brutes de l'API —
+   même une simple somme ou division (ex. compter des doses de croquette, additionner des grammes par
+   mode de distribution). Si l'écran a besoin d'un nombre dérivé, c'est l'endpoint qui le renvoie déjà
+   calculé (ajouter un champ à la réponse plutôt que de le recalculer côté client), et toute règle
+   d'arrondi/quantification (paquet, dose...) qui borne une quantité persistée doit être appliquée dans
+   le service au moment de l'écriture (`PATCH`/`POST`), jamais seulement supposée respectée parce que
+   l'UI a un slider avec le bon pas — sinon un client qui envoie une valeur "hors grille" (drag imprécis,
+   requête API directe, futur troisième client) la persiste telle quelle. Objectif : le jour où deux
+   clients (web + mobile) affichent la même donnée serveur, ils ne doivent jamais pouvoir afficher un
+   résultat différent. Avant de considérer une feature terminée, relire chaque fichier `.svelte`/`.dart`
+   touché à la recherche d'un calcul (`+ - * /`, `Math.`/`.round()`, `reduce`/agrégation) portant sur un
+   champ métier (quantiteG, kcal, doseG, totaux...) en dehors d'un simple passthrough d'affichage — un
+   tel calcul doit remonter dans le domain/service correspondant. Exemple canonique dans le code :
+   `arrondirALaDose` (`repartition.calc.ts`) est appelée à la fois par le moteur de répartition du jour
+   ET par `mealEntry.service.ts` au moment du `PATCH` manuel — jamais recalculée dans
+   `DailyMealSchedule.svelte` ni dans `today_screen.dart`, qui se contentent d'afficher `doses` /
+   `recapCroquette` tels que renvoyés par `GET /api/repartition`.
 
 ## Conventions de nommage
 

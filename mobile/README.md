@@ -21,30 +21,18 @@ bearer, cf. [`../CLAUDE.md`](../CLAUDE.md).
    flutter doctor
    ```
 
-## Premier lancement (génère le dossier `android/`)
+## Premier lancement
 
-Ce dépôt contient déjà `pubspec.yaml` et `lib/`, mais **pas** encore `android/` (généré par Flutter
-lui-même, pas committé à la main pour rester toujours cohérent avec la version de Flutter installée
-chez toi). À faire une seule fois :
+Le dossier `android/` est généré (`flutter create --platforms=android --org com.crystalmiaou .`) et
+**committé** — les fichiers du widget d'écran d'accueil (`native/widget/`) y sont déjà copiés
+(`HomeWidgetProvider.kt`, `home_widget_layout.xml`, `home_widget_info.xml`, et le `<receiver>`
+correspondant dans `AndroidManifest.xml`). Si tu régénères `android/` depuis zéro (nouvelle version de
+Flutter, désync avec `flutter create`), reproduis ces copies manuellement à partir de `native/widget/`.
 
 ```sh
 cd mobile
-flutter create --platforms=android --org com.crystalmiaou .
 flutter pub get
 ```
-
-Ensuite, active le widget d'écran d'accueil personnalisé en copiant les fichiers fournis dans
-`native/widget/` :
-
-```sh
-cp native/widget/HomeWidgetProvider.kt android/app/src/main/kotlin/com/crystalmiaou/crystal_miaou/HomeWidgetProvider.kt
-cp native/widget/home_widget_layout.xml android/app/src/main/res/layout/home_widget_layout.xml
-mkdir -p android/app/src/main/res/xml
-cp native/widget/home_widget_info.xml android/app/src/main/res/xml/home_widget_info.xml
-```
-
-Puis ouvre `android/app/src/main/AndroidManifest.xml` et colle le contenu de
-`native/widget/AndroidManifest.snippet.xml` à l'intérieur de la balise `<application>`.
 
 ## Lancer en dev
 
@@ -77,6 +65,11 @@ téléphone, aucun store ni build cloud requis.
 - Les polices (Inter/Manrope, comme sur le web) sont chargées via `google_fonts`, mise en cache après
   le premier lancement — pour un fonctionnement 100% hors-ligne dès l'installation, télécharger les
   `.ttf` et les déclarer en asset local dans `pubspec.yaml` à la place.
+- `flutter build apk --debug` et `--release` sont vérifiés OK (Flutter 3.47.1). Un warning Gradle
+  bénin apparaît (« home_widget applique Kotlin Gradle Plugin (KGP) directement ») — à surveiller
+  lors d'une montée de version de Flutter/AGP, mais aucun impact sur le build actuel.
+- `test/widget_test.dart` doit rester synchro avec le nom de la classe racine de `lib/main.dart`
+  (`CrystalMiaouApp`, pas le `MyApp` du template par défaut) — `flutter analyze` le signale sinon.
 
 ## Structure
 

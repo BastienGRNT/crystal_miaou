@@ -16,6 +16,10 @@ export interface FoodInput {
 	type: FoodType;
 	emKcal100g: number | null;
 	packageSizeG: number | null;
+	/** Poids d'une dose/cup du distributeur automatique, en grammes — pertinent uniquement pour une
+	 * croquette utilisée avec un distributeur automatique (les distributeurs comptent en doses, pas en
+	 * grammes). Null = pas de distributeur automatique configuré pour cet aliment. */
+	doseDistributeurG: number | null;
 	proteinesG100g: number;
 	lipidesG100g: number;
 	/** Optionnel : pas légalement obligatoire sur l'étiquette en dessous de 14% d'humidité (donc quasi
@@ -61,6 +65,13 @@ export function validateFoodInput(input: FoodInput): FoodValidationResult {
 
 	if (input.packageSizeG !== null && (!Number.isFinite(input.packageSizeG) || input.packageSizeG <= 0)) {
 		errors.packageSizeG = 'Le poids du paquet doit être un nombre supérieur à 0.';
+	}
+
+	if (
+		input.doseDistributeurG !== null &&
+		(!Number.isFinite(input.doseDistributeurG) || input.doseDistributeurG <= 0)
+	) {
+		errors.doseDistributeurG = 'Le poids d\'une dose doit être un nombre supérieur à 0.';
 	}
 
 	if (!estPositifOuNul(input.proteinesG100g)) {

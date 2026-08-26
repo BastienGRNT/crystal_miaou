@@ -34,7 +34,7 @@
 		id: string;
 		consumedAt: string;
 		foodType: FoodType;
-		food: { id: string; name: string; brand: string; packageSizeG: number | null };
+		food: { id: string; name: string; brand: string; packageSizeG: number | null; doseDistributeurG: number | null };
 		quantiteG: number;
 		kcal: number;
 		locked: boolean;
@@ -42,6 +42,14 @@
 		validatedBy: { id: string; name: string } | null;
 		validatedAt: string | null;
 		distributionMode: DistributionMode;
+		/** Nombre de doses du distributeur automatique que représente `quantiteG`, déjà calculé côté API —
+		 * null si ce créneau n'est pas distribué par un distributeur à dose connue. */
+		doses: number | null;
+	}
+
+	export interface RecapDistributionCroquette {
+		distributeurAutomatiqueG: number;
+		aPreparerG: number;
 	}
 
 	export interface RepartitionOkResponse {
@@ -52,6 +60,7 @@
 		nombrePaquetsPatee: number | null;
 		pateeNombrePaquetsOverride: number | null;
 		repas: RepasRepartition[];
+		recapCroquette: RecapDistributionCroquette | null;
 		ration: {
 			totalKcal: number;
 			statuts: RationStatut[];
@@ -140,15 +149,28 @@
 	}
 
 	/** Pas du slider : pour la pâtée, toujours un demi-paquet (jamais un quart ou un tiers de paquet,
-	 * ça ne se mesure pas sur une balance de cuisine) — pour les autres types, le gramme. */
+	 * ça ne se mesure pas sur une balance de cuisine) — pour une croquette servie par un distributeur
+	 * automatique dont la dose est connue, toujours un multiple de cette dose (le distributeur ne sait
+	 * donner qu'un nombre entier de doses) — pour les autres types, le gramme. */
 	function sliderStep(repas: RepasRepartition): number {
-		return repas.foodType === 'patee' && repas.food.packageSizeG ? repas.food.packageSizeG / 2 : 0.5;
+		if (repas.foodType === 'patee' && repas.food.packageSizeG) return repas.food.packageSizeG / 2;
+		if (
+			repas.foodType === 'croquette' &&
+			repas.distributionMode === 'distributeur_automatique' &&
+			repas.food.doseDistributeurG
+		) {
+			return repas.food.doseDistributeurG;
+		}
+		return 0.5;
 	}
 
 	function formatQuantite(repas: RepasRepartition): string {
 		if (repas.foodType === 'patee' && repas.food.packageSizeG) {
 			const paquets = sliderValue(repas) / repas.food.packageSizeG;
 			return `${paquets % 1 === 0 ? paquets : paquets.toFixed(1)} paquet${paquets > 1 ? 's' : ''}`;
+		}
+		if (repas.doses !== null) {
+			return `${repas.doses} dose${repas.doses > 1 ? 's' : ''} (${sliderValue(repas)} g)`;
 		}
 		return `${sliderValue(repas)} g`;
 	}

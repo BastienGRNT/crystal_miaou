@@ -8,7 +8,7 @@ import {
 import { isCatMemberForUser } from '$lib/server/repositories/cat.repository';
 import { findFoodByIdForUser } from '$lib/server/repositories/food.repository';
 import { validateMealEntryInput, type MealEntryInput } from '$lib/domain/mealEntry.calc';
-import { arrondirAuDemiPaquet } from '$lib/domain/repartition.calc';
+import { arrondirALaDose, arrondirAuDemiPaquet } from '$lib/domain/repartition.calc';
 import type { mealEntry } from '$lib/server/db/schema';
 
 export interface MealEntryMutationResult {
@@ -91,12 +91,21 @@ export async function updateMealEntryForUser(
 
 	const repositoryInput: Parameters<typeof updateMealEntry>[1] = {};
 	if (input.quantityG !== undefined) {
-		// Pâtée : toujours un multiple d'un demi-paquet, jamais un quart ou un tiers, même si le client
-		// envoie une valeur hors grille (ex: drag imprécis avant que le pas du slider ne s'applique).
-		repositoryInput.quantityG =
-			existing.food.type === 'patee' && existing.food.packageSizeG !== null
-				? arrondirAuDemiPaquet(input.quantityG, Number(existing.food.packageSizeG))
-				: input.quantityG;
+		// Pâtée : toujours un multiple d'un demi-paquet — croquette + distributeur automatique : toujours
+		// un multiple de la dose — même si le client (web ou mobile) envoie une valeur hors grille (ex:
+		// drag imprécis avant que le pas du slider ne s'applique). Règle appliquée ici, jamais côté client :
+		// c'est la seule façon de garantir un résultat identique quel que soit le client qui écrit.
+		if (existing.food.type === 'patee' && existing.food.packageSizeG !== null) {
+			repositoryInput.quantityG = arrondirAuDemiPaquet(input.quantityG, Number(existing.food.packageSizeG));
+		} else if (
+			existing.food.type === 'croquette' &&
+			existing.sourceDailyPlanSlot?.distributionMode === 'distributeur_automatique' &&
+			existing.food.doseDistributeurG !== null
+		) {
+			repositoryInput.quantityG = arrondirALaDose(input.quantityG, Number(existing.food.doseDistributeurG));
+		} else {
+			repositoryInput.quantityG = input.quantityG;
+		}
 		repositoryInput.locked = true;
 	}
 	if (input.validated !== undefined) {

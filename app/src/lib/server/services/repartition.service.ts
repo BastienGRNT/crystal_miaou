@@ -132,7 +132,7 @@ export interface RepasRepartition {
 	id: string;
 	consumedAt: string;
 	foodType: RepartitionFoodType;
-	food: { id: string; name: string; brand: string; packageSizeG: number | null };
+	food: { id: string; name: string; brand: string; packageSizeG: number | null; doseDistributeurG: number | null };
 	quantiteG: number;
 	/** Kcal apportées par ce créneau (quantiteG × emKcal100g du repas) — permet à l'UI d'afficher le
 	 * poids calorique de chaque créneau sans redupliquer la formule côté client. */
@@ -144,6 +144,20 @@ export interface RepasRepartition {
 	/** Mode de distribution du créneau source (routine) — permet à l'UI de différencier "donné par le
 	 * distributeur automatique" (coché d'office) de "donné à la main" (coché par un membre du foyer). */
 	distributionMode: DistributionMode;
+	/** Nombre de doses du distributeur automatique que représente `quantiteG` — déjà calculé ici pour que
+	 * web et mobile affichent la même valeur sans refaire la division chacun de leur côté. Null si ce
+	 * créneau n'est pas distribué par un distributeur automatique à dose connue. */
+	doses: number | null;
+}
+
+/** Récapitulatif des grammes de croquette du jour par "qui s'en charge" : le distributeur automatique
+ * est déjà chargé pour tout le mois (rien à préparer), une gamelle (ludique ou non) demande de peser la
+ * portion du jour à la main — deux gestes différents. Calculé une seule fois ici pour que web et mobile
+ * affichent le même total sans ré-agréger `repas` chacun de leur côté (cf. specs/nutrition-spec.md
+ * "API-first, une seule source de vérité"). Null si aucune croquette n'est active aujourd'hui. */
+export interface RecapDistributionCroquette {
+	distributeurAutomatiqueG: number;
+	aPreparerG: number;
 }
 
 export interface RepartitionResultatOk {
@@ -156,6 +170,7 @@ export interface RepartitionResultatOk {
 	 * depuis le DER. Permet à l'UI de pré-remplir le slider et distinguer "auto" de "fixé". */
 	pateeNombrePaquetsOverride: number | null;
 	repas: RepasRepartition[];
+	recapCroquette: RecapDistributionCroquette | null;
 	ration: RationResume;
 	avertissements: string[];
 }
@@ -284,7 +299,13 @@ export async function calculerEtPersisterRepartitionJournaliere(
 		foodType: entry.food.type as RepartitionFoodType,
 		locked: (entry.locked || entry.validated) && !freshlyGeneratedValidatedIds.has(entry.id),
 		quantiteActuelleG: Number(entry.quantityG ?? 0),
-		heureMinutes: entry.consumedAt.getHours() * 60 + entry.consumedAt.getMinutes()
+		heureMinutes: entry.consumedAt.getHours() * 60 + entry.consumedAt.getMinutes(),
+		doseDistributeurG:
+			entry.food.type === 'croquette' &&
+			entry.sourceDailyPlanSlot?.distributionMode === 'distributeur_automatique' &&
+			entry.food.doseDistributeurG !== null
+				? Number(entry.food.doseDistributeurG)
+				: undefined
 	}));
 
 	const resultat = calculerRepartitionJournaliere({
@@ -311,24 +332,49 @@ export async function calculerEtPersisterRepartitionJournaliere(
 		.map((entry) => ({ id: entry.id, quantityG: quantiteParId.get(entry.id) ?? 0 }));
 	await updateMealEntryQuantities(aPersister);
 
-	const repas: RepasRepartition[] = mealEntries.map((entry) => ({
-		id: entry.id,
-		consumedAt: entry.consumedAt.toISOString(),
-		foodType: entry.food.type as RepartitionFoodType,
-		food: {
-			id: entry.food.id,
-			name: entry.food.name,
-			brand: entry.food.brand,
-			packageSizeG: entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG)
-		},
-		quantiteG: quantiteParId.get(entry.id) ?? 0,
-		kcal: Math.round(((quantiteParId.get(entry.id) ?? 0) * Number(entry.food.emKcal100g)) / 100),
-		locked: entry.locked,
-		validated: entry.validated,
-		validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
-		validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null,
-		distributionMode: (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode
-	}));
+	const repas: RepasRepartition[] = mealEntries.map((entry) => {
+		const quantiteG = quantiteParId.get(entry.id) ?? 0;
+		const doseDistributeurG =
+			entry.food.doseDistributeurG === null ? null : Number(entry.food.doseDistributeurG);
+		const distributionMode = (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode;
+
+		return {
+			id: entry.id,
+			consumedAt: entry.consumedAt.toISOString(),
+			foodType: entry.food.type as RepartitionFoodType,
+			food: {
+				id: entry.food.id,
+				name: entry.food.name,
+				brand: entry.food.brand,
+				packageSizeG: entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG),
+				doseDistributeurG
+			},
+			quantiteG,
+			kcal: Math.round((quantiteG * Number(entry.food.emKcal100g)) / 100),
+			locked: entry.locked,
+			validated: entry.validated,
+			validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
+			validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null,
+			distributionMode,
+			doses:
+				distributionMode === 'distributeur_automatique' && doseDistributeurG
+					? Math.round(quantiteG / doseDistributeurG)
+					: null
+		};
+	});
+
+	const recapCroquette: RecapDistributionCroquette | null = cat.activeCroquetteFood
+		? repas
+				.filter((r) => r.foodType === 'croquette')
+				.reduce<RecapDistributionCroquette>(
+					(acc, r) => {
+						if (r.distributionMode === 'distributeur_automatique') acc.distributeurAutomatiqueG += r.quantiteG;
+						else acc.aPreparerG += r.quantiteG;
+						return acc;
+					},
+					{ distributeurAutomatiqueG: 0, aPreparerG: 0 }
+				)
+		: null;
 
 	const rationCalculee = agregerRation(
 		mealEntries.map((entry) => ({
@@ -376,6 +422,7 @@ export async function calculerEtPersisterRepartitionJournaliere(
 		pateeNombrePaquetsOverride:
 			cat.pateeNombrePaquetsOverride === null ? null : Number(cat.pateeNombrePaquetsOverride),
 		repas,
+		recapCroquette,
 		ration,
 		avertissements: resultat.avertissements
 	};

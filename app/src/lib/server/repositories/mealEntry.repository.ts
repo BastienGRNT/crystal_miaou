@@ -113,7 +113,9 @@ export async function listMealEntriesForCatInRange(catId: string, startDate: Dat
 export async function findMealEntryById(id: string) {
 	return db.query.mealEntry.findFirst({
 		where: eq(mealEntry.id, id),
-		with: { food: true }
+		// sourceDailyPlanSlot : nécessaire pour connaître le mode de distribution du créneau (mealEntry.service
+		// s'en sert pour arrondir un ajustement manuel de croquette à la dose du distributeur automatique).
+		with: { food: true, sourceDailyPlanSlot: true }
 	});
 }
 
