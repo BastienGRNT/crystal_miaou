@@ -461,7 +461,7 @@
 			</p>
 
 			<FormField label="Énergie métabolisable (kcal/100g, optionnel)" for="emKcal100g" error={errors.emKcal100g}>
-				<Input id="emKcal100g" type="number" step="0.1" min="0" bind:value={emKcal100g} />
+				<Input id="emKcal100g" type="number" step="0.01" min="0" bind:value={emKcal100g} />
 			</FormField>
 			{#if atwaterPreview?.emEstimee}
 				<Alert variant="info" title="Laissez vide si vous ne trouvez pas — c'est prévu">
