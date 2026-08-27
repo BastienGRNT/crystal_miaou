@@ -2,6 +2,7 @@ class Cat {
   final String id;
   final String name;
   final double weightKg;
+  final String? birthDate;
   final String sex;
   final bool sterilized;
   final String activityLevel;
@@ -17,6 +18,7 @@ class Cat {
     required this.id,
     required this.name,
     required this.weightKg,
+    required this.birthDate,
     required this.sex,
     required this.sterilized,
     required this.activityLevel,
@@ -33,6 +35,7 @@ class Cat {
         id: json['id'] as String,
         name: json['name'] as String,
         weightKg: (json['weightKg'] as num).toDouble(),
+        birthDate: json['birthDate'] as String?,
         sex: json['sex'] as String,
         sterilized: json['sterilized'] as bool,
         activityLevel: json['activityLevel'] as String,

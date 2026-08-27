@@ -68,8 +68,24 @@ class ApiClient {
     return _decode(res);
   }
 
-  Future<dynamic> delete(String path) async {
-    final res = await http.delete(_uri(path), headers: await _headers(json: false));
+  Future<dynamic> delete(String path, {Map<String, dynamic>? body}) async {
+    final res = await http.delete(
+      _uri(path),
+      headers: await _headers(json: body != null),
+      body: body == null ? null : jsonEncode(body),
+    );
+    return _decode(res);
+  }
+
+  /// Envoi multipart (scan d'étiquette) — le token bearer va en en-tête comme les autres requêtes,
+  /// pas de Content-Type manuel : `http.MultipartRequest` le fixe lui-même (boundary inclus).
+  Future<dynamic> postMultipartFile(String path, {required String fieldName, required List<int> bytes, required String filename}) async {
+    final request = http.MultipartRequest('POST', _uri(path));
+    final t = await token;
+    if (t != null) request.headers['Authorization'] = 'Bearer $t';
+    request.files.add(http.MultipartFile.fromBytes(fieldName, bytes, filename: filename));
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
     return _decode(res);
   }
 

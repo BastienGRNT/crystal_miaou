@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/cat.dart';
 import '../../core/theme.dart';
+import '../auth/auth_service.dart';
+import 'cat_detail_screen.dart';
+import 'cat_form_screen.dart';
 import 'cats_service.dart';
 
 class CatsScreen extends StatefulWidget {
@@ -20,10 +23,60 @@ class _CatsScreenState extends State<CatsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => context.read<CatsService>().load());
   }
 
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Se déconnecter ?'),
+        content: const Text('Vous devrez ressaisir vos identifiants pour vous reconnecter.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Se déconnecter')),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.read<AuthService>().signOut();
+    }
+  }
+
+  Future<void> _createCat(BuildContext context) async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const CatFormScreen()),
+    );
+    if (created == true && context.mounted) {
+      await context.read<CatsService>().load();
+    }
+  }
+
+  Future<void> _openDetail(BuildContext context, Cat cat) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CatDetailScreen(
+          cat: cat,
+          onCatUpdated: () => context.read<CatsService>().load(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes chats')),
+      appBar: AppBar(
+        title: const Text('Mes chats'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Se déconnecter',
+            onPressed: () => _confirmLogout(context),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _createCat(context),
+        child: const Icon(Icons.add),
+      ),
       body: Consumer<CatsService>(
         builder: (context, service, _) {
           if (service.loading && service.cats.isEmpty) {
@@ -40,7 +93,8 @@ class _CatsScreenState extends State<CatsScreen> {
               itemBuilder: (context, i) => _CatCard(
                 cat: service.cats[i],
                 derAjustementPctValeurs: service.derAjustementPctValeurs,
-                onOpen: () => widget.onSelectCat(service.cats[i]),
+                onOpenDetail: () => _openDetail(context, service.cats[i]),
+                onSelectToday: () => widget.onSelectCat(service.cats[i]),
                 onAdjustDer: (pct) => service.setDerAjustementPct(service.cats[i].id, pct),
               ),
             ),
@@ -55,13 +109,15 @@ class _CatCard extends StatelessWidget {
   const _CatCard({
     required this.cat,
     required this.derAjustementPctValeurs,
-    required this.onOpen,
+    required this.onOpenDetail,
+    required this.onSelectToday,
     required this.onAdjustDer,
   });
 
   final Cat cat;
   final List<int> derAjustementPctValeurs;
-  final VoidCallback onOpen;
+  final VoidCallback onOpenDetail;
+  final VoidCallback onSelectToday;
   final ValueChanged<int> onAdjustDer;
 
   @override
@@ -74,7 +130,7 @@ class _CatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              onTap: onOpen,
+              onTap: onOpenDetail,
               child: Row(
                 children: [
                   Expanded(
@@ -101,6 +157,18 @@ class _CatCard extends StatelessWidget {
                   onSelected: (_) => onAdjustDer(pct),
                 );
               }).toList(),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(onPressed: onOpenDetail, child: const Text('Aliments & routines')),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(onPressed: onSelectToday, child: const Text('Voir aujourd\'hui')),
+                ),
+              ],
             ),
           ],
         ),

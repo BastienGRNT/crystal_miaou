@@ -1,12 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/api_client.dart';
+import 'core/selected_cat_store.dart';
 import 'core/theme.dart';
 import 'core/models/cat.dart';
+import 'features/analyse/analyse_screen.dart';
+import 'features/analyse/analyse_service.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/cats/cats_service.dart';
 import 'features/cats/cats_screen.dart';
+import 'features/foods/foods_screen.dart';
+import 'features/foods/foods_service.dart';
 import 'features/today/today_service.dart';
 import 'features/today/today_screen.dart';
 import 'notifications/local_notifications_service.dart';
@@ -29,9 +36,12 @@ class CrystalMiaouApp extends StatelessWidget {
       providers: [
         Provider.value(value: api),
         Provider.value(value: notifications),
+        Provider(create: (_) => SelectedCatStore()),
         ChangeNotifierProvider(create: (_) => AuthService(api)..bootstrap()),
         ChangeNotifierProvider(create: (_) => CatsService(api)),
         ChangeNotifierProvider(create: (_) => TodayService(api, homeWidget)),
+        ChangeNotifierProvider(create: (_) => FoodsService(api)),
+        ChangeNotifierProvider(create: (_) => AnalyseService(api)),
       ],
       child: MaterialApp(
         title: 'Crystal Miaou',
@@ -68,24 +78,73 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _tab = 0;
   Cat? _selectedCat;
+  bool _restoring = true;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<LocalNotificationsService>().init();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrapCats());
+  }
+
+  Future<void> _bootstrapCats() async {
+    final catsService = context.read<CatsService>();
+    await catsService.load();
+    if (!mounted) return;
+
+    final store = context.read<SelectedCatStore>();
+    final storedId = await store.read();
+    final cats = catsService.cats;
+
+    Cat? restored;
+    if (storedId != null) {
+      for (final cat in cats) {
+        if (cat.id == storedId) restored = cat;
+      }
+    }
+    restored ??= cats.length == 1 ? cats.first : null;
+
+    if (!mounted) return;
+    setState(() {
+      _selectedCat = restored;
+      _restoring = false;
+    });
+
+    if (restored != null) {
+      unawaited(_syncNotificationsFor(restored));
+    }
+  }
+
+  Future<void> _syncNotificationsFor(Cat cat) async {
+    await context.read<LocalNotificationsService>().syncFromActivePlan(
+          context.read<ApiClient>(),
+          cat.id,
+          cat.name,
+        );
+  }
+
+  void _selectCat(Cat cat) {
+    setState(() {
+      _selectedCat = cat;
+      _tab = 0;
+    });
+    unawaited(context.read<SelectedCatStore>().write(cat.id));
+    unawaited(_syncNotificationsFor(cat));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final cats = context.watch<CatsService>().cats;
+
     final pages = [
-      _selectedCat == null
-          ? const _PickCatPrompt()
-          : TodayScreen(cat: _selectedCat!),
-      CatsScreen(onSelectCat: (cat) {
-        setState(() {
-          _selectedCat = cat;
-          _tab = 0;
-        });
-        context.read<LocalNotificationsService>().syncFromActivePlan(
-              context.read<ApiClient>(),
-              cat.id,
-              cat.name,
-            );
-      }),
+      _restoring
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : _selectedCat == null
+              ? const _PickCatPrompt()
+              : TodayScreen(cat: _selectedCat!, allCats: cats, onSwitchCat: _selectCat),
+      CatsScreen(onSelectCat: _selectCat),
+      const FoodsScreen(),
+      _selectedCat == null ? const _PickCatPrompt() : AnalyseScreen(cat: _selectedCat!),
     ];
 
     return Scaffold(
@@ -96,6 +155,8 @@ class _HomeShellState extends State<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.today), label: 'Aujourd\'hui'),
           NavigationDestination(icon: Icon(Icons.pets), label: 'Mes chats'),
+          NavigationDestination(icon: Icon(Icons.set_meal), label: 'Aliments'),
+          NavigationDestination(icon: Icon(Icons.insights), label: 'Analyse'),
         ],
       ),
     );

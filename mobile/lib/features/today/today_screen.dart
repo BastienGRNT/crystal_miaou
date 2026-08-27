@@ -4,12 +4,17 @@ import 'package:provider/provider.dart';
 import '../../core/models/cat.dart';
 import '../../core/models/repartition.dart';
 import '../../core/theme.dart';
+import '../cats/cat_switcher_sheet.dart';
 import 'today_service.dart';
 
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({super.key, required this.cat});
+  const TodayScreen({super.key, required this.cat, required this.allCats, required this.onSwitchCat});
 
   final Cat cat;
+  // Liste complète + callback de changement : permet un sélecteur rapide en haut de l'écran sans
+  // repasser par l'onglet "Mes chats" (irritant remonté : changer de chat doit être trivial).
+  final List<Cat> allCats;
+  final ValueChanged<Cat> onSwitchCat;
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -25,9 +30,37 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant TodayScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cat.id != widget.cat.id) {
+      context.read<TodayService>().load(widget.cat.id);
+    }
+  }
+
+  Future<void> _openSwitcher() async {
+    final chosen = await showCatSwitcherSheet(context, cats: widget.allCats, selectedCatId: widget.cat.id);
+    if (chosen != null && chosen.id != widget.cat.id) {
+      widget.onSwitchCat(chosen);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Aujourd\'hui — ${widget.cat.name}')),
+      appBar: AppBar(
+        title: widget.allCats.length > 1
+            ? InkWell(
+                onTap: _openSwitcher,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: Text('Aujourd\'hui — ${widget.cat.name}', overflow: TextOverflow.ellipsis)),
+                    const Icon(Icons.unfold_more, size: 18),
+                  ],
+                ),
+              )
+            : Text('Aujourd\'hui — ${widget.cat.name}'),
+      ),
       body: Consumer<TodayService>(
         builder: (context, service, _) {
           if (service.loading && service.repartition == null) {
@@ -67,6 +100,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 ...jour.repas.map((repas) => _MealTile(
                       repas: repas,
                       onToggle: (value) => service.setValidated(widget.cat.id, repas.id, value),
+                      onAdjustQuantity: (grams) => service.adjustQuantity(widget.cat.id, repas.id, grams),
                     )),
               ],
             ),
@@ -150,10 +184,13 @@ class _RecapCroquetteCard extends StatelessWidget {
 }
 
 class _MealTile extends StatelessWidget {
-  const _MealTile({required this.repas, required this.onToggle});
+  const _MealTile({required this.repas, required this.onToggle, required this.onAdjustQuantity});
 
   final Repas repas;
   final ValueChanged<bool> onToggle;
+  // Envoie une quantité brute au serveur, qui applique seul la grille d'arrondi (dose, paquet...) au
+  // moment du PATCH (`arrondirALaDose`, `mealEntry.service.ts`) — jamais quantifiée ici (CLAUDE.md 9).
+  final ValueChanged<double> onAdjustQuantity;
 
   IconData get _icon => switch (repas.foodType) {
         'croquette' => Icons.grain,
@@ -161,6 +198,36 @@ class _MealTile extends StatelessWidget {
         'friandise' => Icons.cookie,
         _ => Icons.restaurant,
       };
+
+  Future<void> _openAdjustDialog(BuildContext context) async {
+    var value = repas.quantiteG;
+    final maxValue = (repas.quantiteG * 2).clamp(10, 1000).toDouble();
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Ajuster — ${repas.food.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${value.toStringAsFixed(0)} g', style: Theme.of(context).textTheme.titleLarge),
+              Slider(
+                value: value.clamp(0, maxValue),
+                min: 0,
+                max: maxValue,
+                onChanged: (v) => setState(() => value = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
+            TextButton(onPressed: () => Navigator.of(context).pop(value), child: const Text('Enregistrer')),
+          ],
+        ),
+      ),
+    );
+    if (result != null) onAdjustQuantity(result);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,6 +245,7 @@ class _MealTile extends StatelessWidget {
           ' · ${repas.kcal.toStringAsFixed(0)} kcal'
           '${repas.food.brand != null ? ' · ${repas.food.brand}' : ''}',
         ),
+        onTap: () => _openAdjustDialog(context),
         trailing: Checkbox(
           value: repas.validated,
           activeColor: AppColors.success,
