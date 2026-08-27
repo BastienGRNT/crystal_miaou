@@ -65,7 +65,16 @@ export async function resetCatsForUser(ownerUserId: string): Promise<void> {
 }
 
 export async function listCatsForOwner(userId: string) {
-	return listCatsForUser(userId);
+	const cats = await listCatsForUser(userId);
+	// Drizzle renvoie les colonnes `numeric` (weightKg, friandiseQuantiteTotaleG) sous forme de string
+	// (précision exacte) — converties en number ici pour que l'API tienne son contrat de type vis-à-vis
+	// des clients JSON stricts (mobile Dart), le web JS ne le remarquant pas mais un `as num` Dart plante.
+	return cats.map((cat) => ({
+		...cat,
+		weightKg: Number(cat.weightKg),
+		friandiseQuantiteTotaleG:
+			cat.friandiseQuantiteTotaleG === null ? null : Number(cat.friandiseQuantiteTotaleG)
+	}));
 }
 
 export interface UpdateCatProfileResult {

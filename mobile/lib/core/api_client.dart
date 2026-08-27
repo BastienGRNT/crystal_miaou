@@ -1,18 +1,20 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 /// URL de base de l'API (app/ web+API), baked au build.
 ///
-/// - Émulateur Android visant l'API lancée en local sur l'hôte : 10.0.2.2 est l'alias standard
+/// - `flutter run` (debug) : cible l'émulateur Android par défaut, 10.0.2.2 étant l'alias standard
 ///   pour joindre le "localhost" de la machine hôte depuis l'émulateur.
-/// - Appareil physique sur le même réseau local : passer l'IP LAN via
-///   `--dart-define=API_BASE_URL=http://192.168.1.42:5173`.
-/// - Build de production : passer l'URL réelle du serveur déployé.
-const String _defaultApiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:5173',
-);
+/// - `flutter build apk --release` (build installé sur le téléphone, cf. build-mobile.sh) : cible
+///   le serveur déployé en production par défaut.
+/// - `--dart-define=API_BASE_URL=http://...` prime toujours sur ces deux défauts (test sur une IP
+///   LAN précise, autre environnement...).
+const String _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+const String _defaultApiBaseUrl = _apiBaseUrlOverride == ''
+    ? (kReleaseMode ? 'https://miaou.bastiengrnt.fr' : 'http://10.0.2.2:5173')
+    : _apiBaseUrlOverride;
 
 class ApiException implements Exception {
   final int statusCode;
