@@ -214,6 +214,10 @@ export interface StatusParNutriment {
 	 * borne max (ou au minimum atteint si pas de max). Clampée — sert uniquement à dessiner une jauge,
 	 * la couleur/le statut restent la source de vérité pour "est-ce que c'est bon". */
 	positionPct: number;
+	/** À quel point `valeur` dépasse (>1) ou reste sous (<1) le seuil franchi — null si la cible est
+	 * respectée. Calculé ici (via `calculerRatioEcartSeuil`) pour que web et mobile affichent le même
+	 * texte contextuel (ex. "2,4× la cible") sans reproduire la formule chacun de leur côté. */
+	ratioEcart: number | null;
 }
 
 export interface RationAValider {
@@ -310,7 +314,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 		valeur: proteinesG1000Kcal,
 		statut: determinerStatut(proteinesG1000Kcal, SEUILS_NUTRIMENTS.proteines),
 		seuil: SEUILS_NUTRIMENTS.proteines,
-		positionPct: calculerPositionSeuil(proteinesG1000Kcal, SEUILS_NUTRIMENTS.proteines)
+		positionPct: calculerPositionSeuil(proteinesG1000Kcal, SEUILS_NUTRIMENTS.proteines),
+		ratioEcart: calculerRatioEcartSeuil(proteinesG1000Kcal, SEUILS_NUTRIMENTS.proteines)
 	});
 
 	const lipidesG1000Kcal = convertirNutrimentPour1000kcal(totalNutriments.lipidesG, totalKcal);
@@ -319,7 +324,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 		valeur: lipidesG1000Kcal,
 		statut: determinerStatut(lipidesG1000Kcal, SEUILS_NUTRIMENTS.lipides),
 		seuil: SEUILS_NUTRIMENTS.lipides,
-		positionPct: calculerPositionSeuil(lipidesG1000Kcal, SEUILS_NUTRIMENTS.lipides)
+		positionPct: calculerPositionSeuil(lipidesG1000Kcal, SEUILS_NUTRIMENTS.lipides),
+		ratioEcart: calculerRatioEcartSeuil(lipidesG1000Kcal, SEUILS_NUTRIMENTS.lipides)
 	});
 
 	let calciumG1000Kcal: number | null = null;
@@ -330,7 +336,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 			valeur: calciumG1000Kcal,
 			statut: determinerStatut(calciumG1000Kcal, SEUILS_NUTRIMENTS.calcium),
 			seuil: SEUILS_NUTRIMENTS.calcium,
-			positionPct: calculerPositionSeuil(calciumG1000Kcal, SEUILS_NUTRIMENTS.calcium)
+			positionPct: calculerPositionSeuil(calciumG1000Kcal, SEUILS_NUTRIMENTS.calcium),
+			ratioEcart: calculerRatioEcartSeuil(calciumG1000Kcal, SEUILS_NUTRIMENTS.calcium)
 		});
 	}
 
@@ -342,7 +349,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 			valeur: phosphoreG1000Kcal,
 			statut: determinerStatut(phosphoreG1000Kcal, SEUILS_NUTRIMENTS.phosphore),
 			seuil: SEUILS_NUTRIMENTS.phosphore,
-			positionPct: calculerPositionSeuil(phosphoreG1000Kcal, SEUILS_NUTRIMENTS.phosphore)
+			positionPct: calculerPositionSeuil(phosphoreG1000Kcal, SEUILS_NUTRIMENTS.phosphore),
+			ratioEcart: calculerRatioEcartSeuil(phosphoreG1000Kcal, SEUILS_NUTRIMENTS.phosphore)
 		});
 	}
 
@@ -354,7 +362,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 			valeur: taurineG1000Kcal,
 			statut: determinerStatut(taurineG1000Kcal, seuil),
 			seuil,
-			positionPct: calculerPositionSeuil(taurineG1000Kcal, seuil)
+			positionPct: calculerPositionSeuil(taurineG1000Kcal, seuil),
+			ratioEcart: calculerRatioEcartSeuil(taurineG1000Kcal, seuil)
 		});
 	}
 
@@ -366,7 +375,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 			valeur: ratio,
 			statut: ratio < 1.0 ? 'DEFICIT' : ratio > 2.0 ? 'EXCES' : 'OK',
 			seuil: seuilRatio,
-			positionPct: calculerPositionSeuil(ratio, seuilRatio)
+			positionPct: calculerPositionSeuil(ratio, seuilRatio),
+			ratioEcart: calculerRatioEcartSeuil(ratio, seuilRatio)
 		});
 	}
 
@@ -385,7 +395,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 				valeur: glucidesPctMS,
 				statut: glucidesPctMS > GLUCIDES_PCT_MS_SEUIL_ATTENTION ? 'ATTENTION' : 'OK',
 				seuil,
-				positionPct: calculerPositionSeuil(glucidesPctMS, seuil)
+				positionPct: calculerPositionSeuil(glucidesPctMS, seuil),
+				ratioEcart: calculerRatioEcartSeuil(glucidesPctMS, seuil)
 			});
 		} else {
 			const glucidesG1000Kcal = convertirNutrimentPour1000kcal(totalNutriments.glucidesG, totalKcal);
@@ -394,7 +405,8 @@ export function validerRation(ration: RationAValider): StatusParNutriment[] {
 				valeur: glucidesG1000Kcal,
 				statut: 'OK',
 				seuil: { min: null, max: null },
-				positionPct: 100
+				positionPct: 100,
+				ratioEcart: null
 			});
 		}
 	}

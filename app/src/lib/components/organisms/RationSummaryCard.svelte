@@ -13,13 +13,7 @@
 
 	let { repartition }: { repartition: RepartitionOkResponse } = $props();
 
-	const totauxParType = $derived.by(() => {
-		const totaux: Record<FoodType, number> = { croquette: 0, patee: 0, friandise: 0 };
-		for (const repas of repartition.repas) {
-			totaux[repas.foodType] += repas.quantiteG;
-		}
-		return totaux;
-	});
+	const totauxParType = $derived(repartition.totauxParType);
 
 	const foodIdsEmEstimee = $derived(
 		new Set(repartition.ration.fiabiliteParAliment.filter((a) => a.emEstimee).map((a) => a.foodId))

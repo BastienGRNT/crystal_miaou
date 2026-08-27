@@ -4,14 +4,15 @@ Application de gestion de la nutrition pour chats : suivi des apports alimentair
 
 Voir [`CLAUDE.md`](./CLAUDE.md) pour l'architecture détaillée, les conventions et les règles du projet.
 
-Monorepo : [`app/`](./app) (web + API SvelteKit) et [`mobile/`](./mobile) (app Android Flutter,
-client pur de l'API de `app/`).
+Monorepo : [`app/`](./app) (web + API SvelteKit) et [`mobile/`](./mobile) (app Android React Native,
+client pur de l'API de `app/`). [`flutter_mobile/`](./flutter_mobile) est l'ancienne app Flutter,
+conservée pour référence mais non maintenue activement.
 
 ## Prérequis
 
 - Node.js 20+
 - Docker (pour la base PostgreSQL locale)
-- Flutter SDK + Android Studio/SDK (pour builder l'app mobile, voir [`mobile/README.md`](./mobile/README.md))
+- Android Studio/SDK (pour builder l'app mobile, voir [`mobile/README.md`](./mobile/README.md))
 
 ## Démarrage (web + API)
 
@@ -82,9 +83,10 @@ pipeline de déploiement — pas nécessaire si `app/static/tessdata/` est déj�
 
 ## App mobile Android
 
-Voir [`mobile/README.md`](./mobile/README.md) pour builder l'APK. En bref : app Flutter native
-(pas de webview), build 100% local via `flutter build apk`, aucune étape cloud.
+Voir [`mobile/README.md`](./mobile/README.md) pour builder l'APK. En bref : app React Native
+(Expo bare/prebuild), build 100% local via `expo run:android` / Gradle, aucune étape cloud (pas d'EAS
+Build).
 
 ## Stack
 
-SvelteKit (TypeScript strict) · Better Auth · Tailwind CSS · PostgreSQL · Drizzle ORM · Flutter (mobile)
+SvelteKit (TypeScript strict) · Better Auth · Tailwind CSS · PostgreSQL · Drizzle ORM · React Native / Expo (mobile)

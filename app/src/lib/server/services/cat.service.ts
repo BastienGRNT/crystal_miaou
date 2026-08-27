@@ -16,6 +16,7 @@ import {
 import { findFoodByIdForUser } from '$lib/server/repositories/food.repository';
 import {
 	CAT_DER_AJUSTEMENT_PCT_VALEURS,
+	calculerAgeMoisDepuisNaissance,
 	isValidEmail,
 	resolveCatBirthDate,
 	validateCatFoodSelectionInput,
@@ -66,14 +67,18 @@ export async function resetCatsForUser(ownerUserId: string): Promise<void> {
 
 export async function listCatsForOwner(userId: string) {
 	const cats = await listCatsForUser(userId);
+	const now = new Date();
 	// Drizzle renvoie les colonnes `numeric` (weightKg, friandiseQuantiteTotaleG) sous forme de string
 	// (précision exacte) — converties en number ici pour que l'API tienne son contrat de type vis-à-vis
-	// des clients JSON stricts (mobile Dart), le web JS ne le remarquant pas mais un `as num` Dart plante.
+	// des clients JSON stricts (mobile RN/Dart), le web JS ne le remarquant pas mais un typage strict plante.
 	return cats.map((cat) => ({
 		...cat,
 		weightKg: Number(cat.weightKg),
 		friandiseQuantiteTotaleG:
-			cat.friandiseQuantiteTotaleG === null ? null : Number(cat.friandiseQuantiteTotaleG)
+			cat.friandiseQuantiteTotaleG === null ? null : Number(cat.friandiseQuantiteTotaleG),
+		// Âge dérivé de `birthDate` ici (CLAUDE.md règle 9) — aucun client ne doit recalculer de mois/années
+		// à partir d'une date de naissance brute.
+		ageMonths: calculerAgeMoisDepuisNaissance(cat.birthDate, now)
 	}));
 }
 

@@ -1,89 +1,75 @@
-# Crystal Miaou — mobile
+# Crystal Miaou — app mobile (React Native / Expo)
 
-App Android **native** (Flutter, moteur Skia — pas de webview/Chromium) qui consomme l'API de
-[`../app`](../app). Aucune logique métier ici : uniquement des `fetch` vers `/api/...` avec un token
-bearer, cf. [`../CLAUDE.md`](../CLAUDE.md).
+Client Android natif de l'API `app/` — aucune logique métier, aucun accès DB, uniquement des appels
+HTTP vers `/api/...` avec un token bearer (voir `app/src/lib/server/auth.ts`, plugin `bearer`).
 
-## Pourquoi Flutter (et pas Capacitor/React Native)
+Expo est utilisé en mode **bare/prebuild** : le dossier `android/` est un vrai projet Gradle généré
+une fois puis committé, buildable en local sans jamais appeler EAS Build.
 
-- Pas de webview : rendu natif Skia, alignable avec les widgets Android natifs.
-- `home_widget` : le package le plus mature pour des widgets d'écran d'accueil personnalisés
-  (`AppWidgetProvider` Kotlin) — voir `native/widget/`.
-- `flutter_local_notifications` : rappels de repas 100% locaux, aucun broker/FCM.
-- `flutter build apk` : build 100% local (Gradle interne), zéro étape cloud — contrairement à Expo.
+## Build (Windows & Linux/WSL)
 
-## Prérequis (une seule fois)
+Voir **[docs/BUILD.md](./docs/BUILD.md)** pour la doc complète (prérequis par OS, particularités
+WSL, dépannage) et **[docs/BUILD.md#utiliser-adb](./docs/BUILD.md#utiliser-adb)** pour adb.
 
-1. Installer le [Flutter SDK](https://docs.flutter.dev/get-started/install) et Android Studio (SDK +
-   un émulateur, ou un téléphone en mode développeur/USB debugging).
-2. Vérifier l'installation :
-   ```sh
-   flutter doctor
-   ```
-
-## Premier lancement
-
-Le dossier `android/` est généré (`flutter create --platforms=android --org com.crystalmiaou .`) et
-**committé** — les fichiers du widget d'écran d'accueil (`native/widget/`) y sont déjà copiés
-(`HomeWidgetProvider.kt`, `home_widget_layout.xml`, `home_widget_info.xml`, et le `<receiver>`
-correspondant dans `AndroidManifest.xml`). Si tu régénères `android/` depuis zéro (nouvelle version de
-Flutter, désync avec `flutter create`), reproduis ces copies manuellement à partir de `native/widget/`.
+Démarrage rapide via les scripts fournis (`scripts/build-android.sh` pour Linux/macOS/WSL/Git Bash,
+`scripts/build-android.ps1` pour PowerShell — ou `make` sur Unix, voir `Makefile`) :
 
 ```sh
 cd mobile
-flutter pub get
+npm install
+./scripts/build-android.sh --release --install     # build + adb install sur le device détecté
 ```
 
-## Lancer en dev
+```powershell
+cd mobile
+npm install
+./scripts/build-android.ps1 -Mode release -Install
+```
 
-Démarre d'abord l'API en local (`cd ../app && npm run dev`), puis :
+Par défaut (voir `app.config.ts`), l'app cible le serveur de **production**
+(`https://miaou.bastiengrnt.fr`) — y compris en debug. Pour développer contre `app/` en local :
 
 ```sh
-flutter run
+./scripts/build-android.sh --debug --api-base-url http://10.0.2.2:5173 --install
 ```
 
-- Émulateur Android : l'URL par défaut (`http://10.0.2.2:5173`) fonctionne sans rien changer.
-- Téléphone physique sur le même réseau :
-  ```sh
-  flutter run --dart-define=API_BASE_URL=http://<IP_LAN_DE_TON_PC>:5173
-  ```
+⚠️ `API_BASE_URL` doit être fixé **au moment du build** (lu par `app.config.ts`, évalué par Gradle à
+la compilation) — changer la variable d'env après coup n'affecte pas un APK déjà buildé, il faut
+reconstruire.
 
-## Builder l'APK (100% local)
+## Architecture
 
-```sh
-flutter build apk --release --dart-define=API_BASE_URL=https://<url-de-prod>
-```
+Voir `CLAUDE.md` (racine du repo) pour les règles du monorepo. En bref :
 
-L'APK signé (debug key par défaut) se trouve dans
-`build/app/outputs/flutter-apk/app-release.apk` — à transférer/installer directement sur le
-téléphone, aucun store ni build cloud requis.
+- `src/design-system/{atoms,molecules,organisms}/` — composants UI, même convention et mêmes noms
+  que côté web (`app/src/lib/components/`) quand un équivalent existe.
+- `src/screens/` — écrans, composés uniquement de `design-system/*`.
+- `src/api/` — client HTTP (`client.ts`) + hooks React Query par ressource.
+- `src/auth/` — contexte d'authentification (token sécurisé, état connecté/déconnecté).
+- `src/navigation/` — React Navigation (bottom tabs + stacks).
+- `../packages/shared-types/` — types TypeScript partagés avec `app/` (interfaces uniquement).
 
-## Notes
+**Zéro dérivation métier côté client** (CLAUDE.md règle 9) : un écran ne recalcule jamais une
+quantité/kcal/dose à partir de données brutes — ces valeurs sont toujours déjà calculées par l'API.
 
-- Les versions dans `pubspec.yaml` ont été fixées sans accès à pub.dev depuis cet environnement ; si
-  `flutter pub get` échoue sur un conflit de résolution, lance `flutter pub upgrade --major-versions`.
-- Les polices (Inter/Manrope, comme sur le web) sont chargées via `google_fonts`, mise en cache après
-  le premier lancement — pour un fonctionnement 100% hors-ligne dès l'installation, télécharger les
-  `.ttf` et les déclarer en asset local dans `pubspec.yaml` à la place.
-- `flutter build apk --debug` et `--release` sont vérifiés OK (Flutter 3.47.1). Un warning Gradle
-  bénin apparaît (« home_widget applique Kotlin Gradle Plugin (KGP) directement ») — à surveiller
-  lors d'une montée de version de Flutter/AGP, mais aucun impact sur le build actuel.
-- `test/widget_test.dart` doit rester synchro avec le nom de la classe racine de `lib/main.dart`
-  (`CrystalMiaouApp`, pas le `MyApp` du template par défaut) — `flutter analyze` le signale sinon.
+## État du portage (depuis l'app Flutter, `flutter_mobile/`)
 
-## Structure
+- ✅ Auth (connexion/inscription), onboarding (premier chat)
+- ✅ Accueil / menu du jour : score, résumé, timeline des repas, ajustement slider, sélection
+  d'aliments actifs, détail du calcul, historique des jours passés
+- ✅ Mes chats : profils, ajustement DER rapide, modale d'édition, suivi de poids, foyer multi-user
+- ✅ Aliments : CRUD, filtre par type, scan d'étiquette OCR (caméra/galerie → `/api/foods/scan`,
+  correction manuelle obligatoire avant sauvegarde)
+- ✅ Analyse : sélecteur chat/période, graphique barres, stats de conformité
+- ✅ Routines : CRUD journées type + activation
+- ✅ Ajouter un repas manuel, Comprendre le calcul (contenu statique)
+- ⏳ Widget écran d'accueil Android, notifications locales — équivalents natifs de
+  `flutter_mobile/lib/widget/` et `flutter_mobile/lib/notifications/`, pas encore portés
+  (le plus délicat : modules natifs Kotlin custom, nécessite un config plugin Expo dédié)
 
-```
-lib/
-  core/
-    api_client.dart     → wrapper HTTP + token bearer (flutter_secure_storage)
-    theme.dart           → couleurs/polices calquées sur app/src/routes/layout.css
-    models/              → miroirs Dart des shapes JSON de l'API
-  features/
-    auth/                 → login (Better Auth, plugin bearer)
-    today/                → écran "Aujourd'hui" (timeline repas, checkbox "donné")
-    cats/                 → liste des chats + ajustement DER en un clic
-  widget/                 → pont Dart ↔ widget d'écran d'accueil (home_widget)
-  notifications/          → rappels de repas locaux (flutter_local_notifications)
-native/widget/            → fichiers Kotlin/XML à copier dans android/ après `flutter create`
-```
+Simplification volontaire par rapport au web : le formulaire Aliments n'affiche pas d'aperçu live de
+l'énergie (Atwater/NRC2006) pendant la saisie — le web le calcule côté client en important directement
+`resolveFoodEnergyValues` (même runtime JS), ce que le mobile ne peut pas faire sans dupliquer la
+formule (CLAUDE.md règle 9). Les badges "EM estimée"/"Glucides estimés" restent visibles une fois
+l'aliment enregistré, comme sur la liste. Un futur endpoint `/api/foods/preview` lèverait cette
+limite pour les deux clients si besoin.

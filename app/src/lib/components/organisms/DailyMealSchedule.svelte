@@ -26,6 +26,7 @@
 		statut: StatutNutriment;
 		seuil: SeuilNutriment;
 		positionPct: number;
+		ratioEcart: number | null;
 	}
 
 	type DistributionMode = 'gamelle' | 'distributeur_automatique' | 'gamelle_ludique';
@@ -45,6 +46,8 @@
 		/** Nombre de doses du distributeur automatique que représente `quantiteG`, déjà calculé côté API —
 		 * null si ce créneau n'est pas distribué par un distributeur à dose connue. */
 		doses: number | null;
+		/** Nombre de paquets de pâtée que représente `quantiteG`, déjà calculé côté API — null hors pâtée. */
+		paquets: number | null;
 	}
 
 	export interface RecapDistributionCroquette {
@@ -61,6 +64,7 @@
 		pateeNombrePaquetsOverride: number | null;
 		repas: RepasRepartition[];
 		recapCroquette: RecapDistributionCroquette | null;
+		totauxParType: Record<FoodType, number>;
 		ration: {
 			totalKcal: number;
 			statuts: RationStatut[];
@@ -166,7 +170,13 @@
 
 	function formatQuantite(repas: RepasRepartition): string {
 		if (repas.foodType === 'patee' && repas.food.packageSizeG) {
-			const paquets = sliderValue(repas) / repas.food.packageSizeG;
+			// En cours de glissement du slider (valeur pas encore validée par le serveur) : aperçu local
+			// nécessaire pour un retour visuel immédiat. Une fois validé, `repas.paquets` (calculé par
+			// l'API, CLAUDE.md règle 9) reprend la main — jamais recalculé pour la valeur confirmée.
+			const paquets =
+				sliderValues[repas.id] !== undefined
+					? sliderValue(repas) / repas.food.packageSizeG
+					: (repas.paquets ?? 0);
 			return `${paquets % 1 === 0 ? paquets : paquets.toFixed(1)} paquet${paquets > 1 ? 's' : ''}`;
 		}
 		if (repas.doses !== null) {

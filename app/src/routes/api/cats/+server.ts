@@ -16,8 +16,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const cats = await listCatsForOwner(locals.user.id);
 	// Valeurs fermées d'ajustement DER (specs/nutrition-spec.md section 5) renvoyées ici plutôt que
 	// dupliquées côté client : le web les importe directement depuis le domain (même runtime JS), mais
-	// le mobile Flutter ne peut pas — c'est donc l'API qui les lui fournit, jamais une constante Dart en
-	// dur (CLAUDE.md règle 9).
+	// le mobile React Native ne peut pas — c'est donc l'API qui les lui fournit, jamais une constante
+	// en dur côté client (CLAUDE.md règle 9).
 	return json({ cats, derAjustementPctValeurs: CAT_DER_AJUSTEMENT_PCT_VALEURS });
 };
 

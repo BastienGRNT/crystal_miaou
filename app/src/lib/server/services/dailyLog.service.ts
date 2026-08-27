@@ -20,6 +20,9 @@ export interface DailyLogEntry {
 	validatedBy: { id: string; name: string } | null;
 	validatedAt: string | null;
 	distributionMode: DistributionMode;
+	/** Nombre de paquets de pâtée que représente `quantiteG` — même logique que `RepasRepartition.paquets`
+	 * (repartition.service.ts), null hors pâtée. */
+	paquets: number | null;
 }
 
 export interface DailyLogResultatOk {
@@ -77,22 +80,24 @@ export async function obtenirJournalJourPourUtilisateur(
 
 	const statuts = validerRation(rationCalculee);
 
-	const entries: DailyLogEntry[] = mealEntries.map((entry) => ({
-		id: entry.id,
-		consumedAt: entry.consumedAt.toISOString(),
-		foodType: entry.food.type as RepartitionFoodType,
-		food: {
-			id: entry.food.id,
-			name: entry.food.name,
-			brand: entry.food.brand,
-			packageSizeG: entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG)
-		},
-		quantiteG: Number(entry.quantityG ?? 0),
-		validated: entry.validated,
-		validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
-		validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null,
-		distributionMode: (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode
-	}));
+	const entries: DailyLogEntry[] = mealEntries.map((entry) => {
+		const foodType = entry.food.type as RepartitionFoodType;
+		const packageSizeG = entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG);
+		const quantiteG = Number(entry.quantityG ?? 0);
+
+		return {
+			id: entry.id,
+			consumedAt: entry.consumedAt.toISOString(),
+			foodType,
+			food: { id: entry.food.id, name: entry.food.name, brand: entry.food.brand, packageSizeG },
+			quantiteG,
+			validated: entry.validated,
+			validatedBy: entry.validatedBy ? { id: entry.validatedBy.id, name: entry.validatedBy.name } : null,
+			validatedAt: entry.validatedAt ? entry.validatedAt.toISOString() : null,
+			distributionMode: (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode,
+			paquets: foodType === 'patee' && packageSizeG ? quantiteG / packageSizeG : null
+		};
+	});
 
 	return {
 		success: true,

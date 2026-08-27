@@ -5,7 +5,7 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from './db';
 
-// L'app mobile (client Flutter natif, pas de webview) s'authentifie via `Authorization: Bearer
+// L'app mobile (client React Native natif, pas de webview) s'authentifie via `Authorization: Bearer
 // <token>` plutôt que par cookie de session — voir plugin `bearer` ci-dessous. `MOBILE_APP_ORIGINS`
 // liste les origines autorisées à requêter l'API pendant le dev (émulateur Android, device physique
 // sur le LAN) ; en prod le mobile ne dépend d'aucune origine web.

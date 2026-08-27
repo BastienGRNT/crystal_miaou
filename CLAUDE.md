@@ -10,19 +10,30 @@ d'architecture découle de cette contrainte.
 
 - [`app/`](./app) — web + API SvelteKit. Toutes les règles de ce fichier concernant `src/`,
   `routes/`, `lib/` sont relatives à `app/` (ex. `src/lib/domain` = `app/src/lib/domain`).
-- [`mobile/`](./mobile) — app Android **Flutter native** (pas de webview/Chromium), client pur de
-  l'API de `app/` — aucune logique métier, aucun accès DB, uniquement des appels HTTP vers
-  `/api/...` avec un token bearer (voir `app/src/lib/server/auth.ts`, plugin `bearer`). Build APK
-  100% local (`flutter build apk`, Gradle interne, pas de build cloud). Widgets d'écran d'accueil
-  (`home_widget`) et notifications locales (`flutter_local_notifications`, pas de broker/FCM).
-  Design mobile-first inspiré du web (mêmes couleurs/polices, cf. `app/src/routes/layout.css`),
-  mais layouts et composants propres, pas de copie des composants `.svelte` du web.
+- [`mobile/`](./mobile) — app Android **React Native native** (Expo en mode bare/prebuild, pas de
+  webview), client pur de l'API de `app/` — aucune logique métier, aucun accès DB, uniquement des
+  appels HTTP vers `/api/...` avec un token bearer (voir `app/src/lib/server/auth.ts`, plugin
+  `bearer`). Build APK 100% local (`expo prebuild -p android` puis `expo run:android` / Gradle
+  direct, **jamais EAS Build**). Organisé en atomic design (`src/design-system/{atoms,molecules,
+  organisms}/`), même convention et mêmes noms de composants que côté web
+  (`app/src/lib/components/`) quand un équivalent existe. Design mobile-first inspiré du web (mêmes
+  couleurs/polices, cf. `app/src/routes/layout.css`), mais layouts et composants propres, pas de
+  copie des composants `.svelte` du web. Types partagés en best-effort avec le web via
+  `packages/shared-types/` (types uniquement, importés en `import type` pour ne jamais impacter le
+  bundle Metro).
+- [`flutter_mobile/`](./flutter_mobile) — ancienne app Android Flutter, remplacée par `mobile/`.
+  Conservée pour référence (widget d'écran d'accueil, notifications locales) mais **non maintenue
+  activement** ; ne pas y ajouter de nouvelles fonctionnalités.
+- `packages/shared-types/` — types TypeScript partagés entre `app/` et `mobile/` (interfaces
+  uniquement, aucune fonction), miroir maintenu à la main des DTO exposés par
+  `app/src/lib/domain/*.calc.ts`.
 - `specs/` — spécifications transverses aux deux apps.
 
 ## Stack
 
 - **SvelteKit** (TypeScript strict) — web (`app/`, adapter-node)
-- **Flutter** — app Android native (`mobile/`), build APK 100% local, aucune dépendance cloud
+- **React Native** (Expo, bare/prebuild) — app Android native (`mobile/`), build APK 100% local
+  (`expo run:android` / Gradle), aucune dépendance cloud (pas d'EAS Build)
 - **Better Auth** — authentification (`src/lib/server/auth.ts`, client web `src/lib/auth-client.ts`) ;
   cookies de session pour le web, plugin `bearer` (token `Authorization`) pour le mobile
 - **Tailwind CSS** — style
@@ -107,8 +118,8 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
    en local (client ou serveur self-hosted), jamais via un appel à un service externe (OpenAI Vision,
    Google Vision, etc.). Le résultat d'un scan n'est jamais présenté comme définitif : une étape de
    correction manuelle par l'utilisateur est obligatoire avant sauvegarde.
-9. **Zéro dérivation métier côté client, web ou mobile** : un composant `.svelte` ou un widget Flutter
-   n'a jamais le droit de recalculer, arrondir, ou agréger une valeur qui a un sens métier (quantités,
+9. **Zéro dérivation métier côté client, web ou mobile** : un composant `.svelte` ou un composant React
+   Native (`.tsx`) n'a jamais le droit de recalculer, arrondir, ou agréger une valeur qui a un sens métier (quantités,
    doses, paquets, kcal, totaux par catégorie, pourcentages...) à partir de données brutes de l'API —
    même une simple somme ou division (ex. compter des doses de croquette, additionner des grammes par
    mode de distribution). Si l'écran a besoin d'un nombre dérivé, c'est l'endpoint qui le renvoie déjà
@@ -124,8 +135,8 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
    tel calcul doit remonter dans le domain/service correspondant. Exemple canonique dans le code :
    `arrondirALaDose` (`repartition.calc.ts`) est appelée à la fois par le moteur de répartition du jour
    ET par `mealEntry.service.ts` au moment du `PATCH` manuel — jamais recalculée dans
-   `DailyMealSchedule.svelte` ni dans `today_screen.dart`, qui se contentent d'afficher `doses` /
-   `recapCroquette` tels que renvoyés par `GET /api/repartition`.
+   `DailyMealSchedule.svelte` ni dans l'écran équivalent de `mobile/src/screens/`, qui se contentent
+   d'afficher `doses` / `recapCroquette` tels que renvoyés par `GET /api/repartition`.
 
 ## Conventions de nommage
 

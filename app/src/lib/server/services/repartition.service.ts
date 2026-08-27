@@ -148,6 +148,10 @@ export interface RepasRepartition {
 	 * web et mobile affichent la même valeur sans refaire la division chacun de leur côté. Null si ce
 	 * créneau n'est pas distribué par un distributeur automatique à dose connue. */
 	doses: number | null;
+	/** Nombre de paquets de pâtée que représente `quantiteG` — même logique que `doses` ci-dessus mais
+	 * pour la pâtée (CLAUDE.md règle 9 : "compter des doses" est nommé comme exemple canonique de calcul
+	 * interdit côté client, le comptage de paquets en est l'exact analogue). Null hors pâtée. */
+	paquets: number | null;
 }
 
 /** Récapitulatif des grammes de croquette du jour par "qui s'en charge" : le distributeur automatique
@@ -171,6 +175,9 @@ export interface RepartitionResultatOk {
 	pateeNombrePaquetsOverride: number | null;
 	repas: RepasRepartition[];
 	recapCroquette: RecapDistributionCroquette | null;
+	/** Total de grammes du jour par type d'aliment — déjà agrégé ici pour que web et mobile affichent le
+	 * même total sans ré-additionner `repas` chacun de leur côté (CLAUDE.md règle 9). */
+	totauxParType: Record<RepartitionFoodType, number>;
 	ration: RationResume;
 	avertissements: string[];
 }
@@ -334,19 +341,21 @@ export async function calculerEtPersisterRepartitionJournaliere(
 
 	const repas: RepasRepartition[] = mealEntries.map((entry) => {
 		const quantiteG = quantiteParId.get(entry.id) ?? 0;
+		const packageSizeG = entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG);
 		const doseDistributeurG =
 			entry.food.doseDistributeurG === null ? null : Number(entry.food.doseDistributeurG);
 		const distributionMode = (entry.sourceDailyPlanSlot?.distributionMode ?? 'gamelle') as DistributionMode;
+		const foodType = entry.food.type as RepartitionFoodType;
 
 		return {
 			id: entry.id,
 			consumedAt: entry.consumedAt.toISOString(),
-			foodType: entry.food.type as RepartitionFoodType,
+			foodType,
 			food: {
 				id: entry.food.id,
 				name: entry.food.name,
 				brand: entry.food.brand,
-				packageSizeG: entry.food.packageSizeG === null ? null : Number(entry.food.packageSizeG),
+				packageSizeG,
 				doseDistributeurG
 			},
 			quantiteG,
@@ -359,9 +368,15 @@ export async function calculerEtPersisterRepartitionJournaliere(
 			doses:
 				distributionMode === 'distributeur_automatique' && doseDistributeurG
 					? Math.round(quantiteG / doseDistributeurG)
-					: null
+					: null,
+			paquets: foodType === 'patee' && packageSizeG ? quantiteG / packageSizeG : null
 		};
 	});
+
+	const totauxParType: Record<RepartitionFoodType, number> = { croquette: 0, patee: 0, friandise: 0 };
+	for (const r of repas) {
+		totauxParType[r.foodType] += r.quantiteG;
+	}
 
 	const recapCroquette: RecapDistributionCroquette | null = cat.activeCroquetteFood
 		? repas
@@ -423,6 +438,7 @@ export async function calculerEtPersisterRepartitionJournaliere(
 			cat.pateeNombrePaquetsOverride === null ? null : Number(cat.pateeNombrePaquetsOverride),
 		repas,
 		recapCroquette,
+		totauxParType,
 		ration,
 		avertissements: resultat.avertissements
 	};

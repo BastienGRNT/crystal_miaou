@@ -37,6 +37,7 @@
 		name: string;
 		weightKg: string;
 		birthDate: string | null;
+		ageMonths: number | null;
 		sex: CatSex;
 		sterilized: boolean;
 		activityLevel: CatActivityLevel;
@@ -65,15 +66,12 @@
 		femelle: 'Femelle'
 	};
 
-	function ageLabel(birthDate: string | null): string {
-		if (!birthDate) return 'Âge inconnu';
-		const months = Math.max(
-			(new Date().getFullYear() - new Date(birthDate).getFullYear()) * 12 +
-				(new Date().getMonth() - new Date(birthDate).getMonth()),
-			0
-		);
-		const years = Math.floor(months / 12);
-		return years >= 1 ? `${years} an${years > 1 ? 's' : ''}` : `${months} mois`;
+	// Formatage d'affichage pur : `ageMonths` est calculé par l'API (CLAUDE.md règle 9), jamais recalculé
+	// ici à partir de `birthDate`.
+	function ageLabel(ageMonths: number | null): string {
+		if (ageMonths === null) return 'Âge inconnu';
+		const years = Math.floor(ageMonths / 12);
+		return years >= 1 ? `${years} an${years > 1 ? 's' : ''}` : `${ageMonths} mois`;
 	}
 
 	let showModal = $state(false);
@@ -205,7 +203,7 @@
 							<h3 class="text-[17px] leading-tight">{cat.name}</h3>
 							<p class="flex items-center gap-1 text-sm text-muted-foreground">
 								{#if cat.sex === 'male'}<Mars class="size-3.5" />{:else}<Venus class="size-3.5" />{/if}
-								{sexLabels[cat.sex]} · {ageLabel(cat.birthDate)} · {Number(cat.weightKg).toFixed(2)} kg
+								{sexLabels[cat.sex]} · {ageLabel(cat.ageMonths)} · {Number(cat.weightKg).toFixed(2)} kg
 							</p>
 						</div>
 					</div>

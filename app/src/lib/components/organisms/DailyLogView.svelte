@@ -4,12 +4,7 @@
 	import Progress from '$lib/components/atoms/Progress.svelte';
 	import Alert from '$lib/components/molecules/Alert.svelte';
 	import EmptyState from '$lib/components/molecules/EmptyState.svelte';
-	import {
-		calculerRatioEcartSeuil,
-		type NomNutrimentValide,
-		type StatutNutriment,
-		type SeuilNutriment
-	} from '$lib/domain/nutrition.calc';
+	import type { NomNutrimentValide, StatutNutriment, SeuilNutriment } from '$lib/domain/nutrition.calc';
 	import Beef from '@lucide/svelte/icons/beef';
 	import Drumstick from '@lucide/svelte/icons/drumstick';
 	import Fish from '@lucide/svelte/icons/fish';
@@ -27,6 +22,8 @@
 		validated: boolean;
 		validatedBy: { id: string; name: string } | null;
 		validatedAt: string | null;
+		/** Nombre de paquets de pâtée que représente `quantiteG`, déjà calculé côté API — null hors pâtée. */
+		paquets: number | null;
 	}
 
 	export interface DailyLogOkResponse {
@@ -43,6 +40,7 @@
 				statut: StatutNutriment;
 				seuil: SeuilNutriment;
 				positionPct: number;
+				ratioEcart: number | null;
 			}[];
 			sousLeRER: boolean;
 			glucidesParAliment: { foodId: string; foodName: string; pctMatiereSeche: number }[];
@@ -106,14 +104,14 @@
 		return 'pas de seuil strict';
 	}
 
-	/** Contextualise l'écart en clair : "2,4× la cible" (au-dessus d'un max) ou "à 86% du minimum". */
-	function formatEcart(statut: { valeur: number; seuil: SeuilNutriment }): string | null {
-		const ratio = calculerRatioEcartSeuil(statut.valeur, statut.seuil);
-		if (ratio === null) return null;
+	/** Contextualise l'écart en clair : "2,4× la cible" (au-dessus d'un max) ou "à 86% du minimum".
+	 * `ratioEcart` est calculé côté API (CLAUDE.md règle 9) — jamais recalculé ici. */
+	function formatEcart(statut: { valeur: number; seuil: SeuilNutriment; ratioEcart: number | null }): string | null {
+		if (statut.ratioEcart === null) return null;
 		if (statut.seuil.max !== null && statut.valeur > statut.seuil.max) {
-			return `${ratio.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}× la cible`;
+			return `${statut.ratioEcart.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}× la cible`;
 		}
-		return `à ${Math.round(ratio * 100)}% du minimum`;
+		return `à ${Math.round(statut.ratioEcart * 100)}% du minimum`;
 	}
 
 	function formatHeure(consumedAt: string): string {
@@ -129,8 +127,8 @@
 	}
 
 	function formatQuantite(entry: DailyLogEntry): string {
-		if (entry.foodType === 'patee' && entry.food.packageSizeG) {
-			const paquets = entry.quantiteG / entry.food.packageSizeG;
+		if (entry.foodType === 'patee' && entry.paquets !== null) {
+			const paquets = entry.paquets;
 			return `${paquets % 1 === 0 ? paquets : paquets.toFixed(1)} paquet${paquets > 1 ? 's' : ''} (${entry.quantiteG} g)`;
 		}
 		return `${entry.quantiteG} g`;

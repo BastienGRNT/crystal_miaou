@@ -5,12 +5,7 @@
 	import Slider from '$lib/components/molecules/Slider.svelte';
 	import Alert from '$lib/components/molecules/Alert.svelte';
 	import Disclosure from '$lib/components/molecules/Disclosure.svelte';
-	import {
-		calculerRatioEcartSeuil,
-		type NomNutrimentValide,
-		type StatutNutriment,
-		type SeuilNutriment
-	} from '$lib/domain/nutrition.calc';
+	import type { NomNutrimentValide, StatutNutriment, SeuilNutriment } from '$lib/domain/nutrition.calc';
 	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import type { RepartitionOkResponse } from './DailyMealSchedule.svelte';
 
@@ -20,6 +15,7 @@
 		statut: StatutNutriment;
 		seuil: SeuilNutriment;
 		positionPct: number;
+		ratioEcart: number | null;
 	}
 
 	let {
@@ -143,14 +139,14 @@
 		return 'pas de seuil strict';
 	}
 
-	/** Contextualise l'écart en clair : "2,4× la cible" (au-dessus d'un max) ou "à 86% du minimum". */
+	/** Contextualise l'écart en clair : "2,4× la cible" (au-dessus d'un max) ou "à 86% du minimum".
+	 * `ratioEcart` est calculé côté API (CLAUDE.md règle 9) — jamais recalculé ici. */
 	function formatEcart(statut: RationStatut): string | null {
-		const ratio = calculerRatioEcartSeuil(statut.valeur, statut.seuil);
-		if (ratio === null) return null;
+		if (statut.ratioEcart === null) return null;
 		if (statut.seuil.max !== null && statut.valeur > statut.seuil.max) {
-			return `${ratio.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}× la cible`;
+			return `${statut.ratioEcart.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}× la cible`;
 		}
-		return `à ${Math.round(ratio * 100)}% du minimum`;
+		return `à ${Math.round(statut.ratioEcart * 100)}% du minimum`;
 	}
 
 	function formatValeursEstimees(aliment: { emEstimee: boolean; humiditeEstimee: boolean; glucidesEstimes: boolean }): string {

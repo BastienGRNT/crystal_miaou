@@ -26,18 +26,34 @@ vite.config.ts.timestamp-*
 # OCR (données de langue Tesseract, téléchargées via `npm run setup:ocr`)
 app/static/tessdata/
 
-# Flutter / Android (mobile/)
-mobile/.dart_tool/
-mobile/.flutter-plugins
-mobile/.flutter-plugins-dependencies
-mobile/.pub-cache/
-mobile/.pub/
-mobile/build/
+# Flutter / Android (flutter_mobile/, app legacy conservée pour référence)
+flutter_mobile/.dart_tool/
+flutter_mobile/.flutter-plugins
+flutter_mobile/.flutter-plugins-dependencies
+flutter_mobile/.pub-cache/
+flutter_mobile/.pub/
+flutter_mobile/build/
+flutter_mobile/android/.gradle/
+flutter_mobile/android/.kotlin/
+flutter_mobile/android/local.properties
+flutter_mobile/android/key.properties
+flutter_mobile/android/app/build/
+flutter_mobile/android/captures/
+flutter_mobile/android/gradlew.log
+flutter_mobile/ios/
+
+# React Native / Expo (mobile/)
+mobile/node_modules/
+mobile/.expo/
 mobile/android/.gradle/
 mobile/android/.kotlin/
 mobile/android/local.properties
 mobile/android/key.properties
 mobile/android/app/build/
+mobile/android/build/
 mobile/android/captures/
 mobile/android/gradlew.log
 mobile/ios/
+mobile/.env
+mobile/*.jks
+mobile/*.keystore
