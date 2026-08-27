@@ -148,7 +148,8 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
   `src/routes/api/<ressource>/[id]/+server.ts` (GET/POST/PATCH/DELETE selon la méthode HTTP).
 - Tables Drizzle : nom singulier snake_case côté SQL (`pgTable('cat', ...)`), export TS en
   camelCase singulier (`export const cat = ...`).
-- Tests unitaires du domain : `*.calc.spec.ts` colocalisés avec le fichier testé.
+- Tests unitaires du domain : `*.calc.test.ts` (ou `.spec.ts`, les deux sont acceptés par la config
+  Vitest) colocalisés avec le fichier testé.
 
 ## Domaine métier
 
