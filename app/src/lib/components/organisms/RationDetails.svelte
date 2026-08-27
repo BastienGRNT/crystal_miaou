@@ -54,7 +54,7 @@
 		pateePaquetsSaving = true;
 		pateePaquetsError = null;
 
-		const response = await fetch(`/api/cats/${catId}`, {
+		const response = await fetch(`/api/v1/cats/${catId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ pateeNombrePaquetsOverride: pateePaquetsValue })
@@ -74,7 +74,7 @@
 		pateePaquetsSaving = true;
 		pateePaquetsError = null;
 
-		const response = await fetch(`/api/cats/${catId}`, {
+		const response = await fetch(`/api/v1/cats/${catId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ pateeNombrePaquetsOverride: null })

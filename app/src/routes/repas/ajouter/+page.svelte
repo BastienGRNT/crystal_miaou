@@ -63,7 +63,7 @@
 
 		loadingPlannedMeals = true;
 		const date = consumedAt.slice(0, 10);
-		const response = await fetch(`/api/meal-entries?catId=${catId}&date=${date}`);
+		const response = await fetch(`/api/v1/meal-entries?catId=${catId}&date=${date}`);
 		loadingPlannedMeals = false;
 
 		if (!response.ok) return;
@@ -73,7 +73,7 @@
 	}
 
 	async function handleDeletePlannedMeal(id: string) {
-		await fetch(`/api/meal-entries/${id}`, { method: 'DELETE' });
+		await fetch(`/api/v1/meal-entries/${id}`, { method: 'DELETE' });
 		await refreshPlannedMeals();
 	}
 
@@ -115,7 +115,7 @@
 
 		loading = true;
 
-		const response = await fetch('/api/meal-entries', {
+		const response = await fetch('/api/v1/meal-entries', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(input)

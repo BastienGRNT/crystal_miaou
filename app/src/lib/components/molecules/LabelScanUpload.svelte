@@ -30,7 +30,7 @@
 			const formData = new FormData();
 			formData.append('image', file);
 
-			const response = await fetch('/api/foods/scan', { method: 'POST', body: formData });
+			const response = await fetch('/api/v1/foods/scan', { method: 'POST', body: formData });
 
 			if (!response.ok) {
 				const body = await response.json().catch(() => ({}));

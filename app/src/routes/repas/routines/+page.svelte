@@ -166,7 +166,7 @@
 
 		loading = true;
 
-		const response = await fetch(editingPlanId ? `/api/daily-plans/${editingPlanId}` : '/api/daily-plans', {
+		const response = await fetch(editingPlanId ? `/api/v1/daily-plans/${editingPlanId}` : '/api/v1/daily-plans', {
 			method: editingPlanId ? 'PATCH' : 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(input)
@@ -186,14 +186,14 @@
 	}
 
 	async function handleActivate(plan: DailyPlanRecord) {
-		await fetch(`/api/daily-plans/${plan.id}/activate`, { method: 'POST' });
+		await fetch(`/api/v1/daily-plans/${plan.id}/activate`, { method: 'POST' });
 		await invalidateAll();
 	}
 
 	async function handleDelete(plan: DailyPlanRecord) {
 		if (!confirm(`Supprimer la routine "${plan.name}" ?`)) return;
 
-		await fetch(`/api/daily-plans/${plan.id}`, { method: 'DELETE' });
+		await fetch(`/api/v1/daily-plans/${plan.id}`, { method: 'DELETE' });
 		await invalidateAll();
 	}
 </script>

@@ -62,7 +62,9 @@ Tout ce qui suit est relatif à `app/` (donc `app/src/routes/api/...`, etc.).
 src/
   routes/
     api/                → endpoints REST (+server.ts), SEUL point d'entrée de la logique métier
-      auth/[...all]/      → handler Better Auth (catch-all)
+      v1/                 → toutes les routes métier versionnées (cats, foods, daily-plans,
+                             meal-entries, repartition, daily-log, analyse...)
+      auth/[...all]/      → handler Better Auth (catch-all), volontairement NON versionné
     (app)/               → pages Svelte, consomment uniquement l'API interne (fetch)
   lib/
     domain/               → types partagés + logique de calcul pure (*.calc.ts), zéro dépendance externe
@@ -94,6 +96,31 @@ lib/server/repositories/*.ts  ──┐
 
 routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
 ```
+
+## Versionnage de l'API
+
+Le web et le mobile consomment **exactement les mêmes routes**, sans contrôle commun sur leur cycle
+de déploiement (l'APK mobile n'est pas mis à jour au même rythme que le serveur adapter-node) : toute
+route métier est donc préfixée `api/v1/` (`src/routes/api/v1/<ressource>/+server.ts`), jamais
+`api/<ressource>/` directement.
+
+- **`api/auth/[...all]`** (handler Better Auth) reste **volontairement non versionné** : c'est le
+  point de montage attendu par Better Auth et son plugin `bearer` (cf. `lib/server/auth.ts`), pas une
+  route métier de l'app — le versionner forcerait à reconfigurer `basePath` côté serveur et côté
+  clients pour aucun bénéfice.
+- **Quand bumper `v2`** : uniquement en cas de changement **cassant** du contrat d'une route
+  existante (champ renommé/supprimé, changement de type, nouvelle validation qui rejette des requêtes
+  qui passaient avant). Ajouter un champ, une route, ou un paramètre de requête optionnel n'exige pas
+  de nouvelle version.
+- **Coexistence** : tant que `mobile/` (APK déjà installés) peut encore dépendre de `v1`, les routes
+  `v1` restent servies telles quelles même après l'introduction de `v2` — dupliquer le `+server.ts`
+  vers `api/v2/<ressource>/` plutôt que modifier `v1` en place. Ne retirer `v1` que lorsqu'aucune
+  version publiée du mobile n'en dépend plus.
+- **Où c'est câblé côté clients** : le web appelle les chemins littéraux `fetch('/api/v1/...')`
+  directement dans les `+page.server.ts`/`.svelte` (pas de wrapper commun, cf. règle 6 — édition
+  ciblée) ; le mobile fait pareil dans `mobile/src/api/*.ts` via `apiGet/apiPost/apiPatch/apiDelete`
+  (`mobile/src/api/client.ts`). Ajouter une route = créer `src/routes/api/v1/<ressource>/+server.ts`
+  et appeler `/api/v1/<ressource>` des deux côtés, pas de préfixe à déclarer ailleurs.
 
 ## Règles absolues
 
@@ -136,7 +163,7 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
    `arrondirALaDose` (`repartition.calc.ts`) est appelée à la fois par le moteur de répartition du jour
    ET par `mealEntry.service.ts` au moment du `PATCH` manuel — jamais recalculée dans
    `DailyMealSchedule.svelte` ni dans l'écran équivalent de `mobile/src/screens/`, qui se contentent
-   d'afficher `doses` / `recapCroquette` tels que renvoyés par `GET /api/repartition`.
+   d'afficher `doses` / `recapCroquette` tels que renvoyés par `GET /api/v1/repartition`.
 
 ## Conventions de nommage
 
@@ -144,8 +171,9 @@ routes/(app)/**/+page.svelte  ──fetch──▶  routes/api/**
 - Repositories : `lib/server/repositories/<entité>.repository.ts`, une fonction exportée par requête
   (ex. `findCatById`, `listMealEntriesForCat`).
 - Services : `lib/server/services/<entité>.service.ts`, orchestrent 1+ repositories et le domain.
-- Routes API : REST classique sous `src/routes/api/<ressource>/+server.ts` et
-  `src/routes/api/<ressource>/[id]/+server.ts` (GET/POST/PATCH/DELETE selon la méthode HTTP).
+- Routes API : REST classique sous `src/routes/api/v1/<ressource>/+server.ts` et
+  `src/routes/api/v1/<ressource>/[id]/+server.ts` (GET/POST/PATCH/DELETE selon la méthode HTTP) —
+  voir section « Versionnage de l'API » ci-dessus.
 - Tables Drizzle : nom singulier snake_case côté SQL (`pgTable('cat', ...)`), export TS en
   camelCase singulier (`export const cat = ...`).
 - Tests unitaires du domain : `*.calc.test.ts` (ou `.spec.ts`, les deux sont acceptés par la config
@@ -224,7 +252,7 @@ ni trop, ni trop peu — sauf choix explicite de l'utilisateur (avec avertisseme
    le signale plutôt que d'écraser silencieusement le plancher.
 5. **Persistance** : `calculerEtPersisterRepartitionJournaliere` (`repartition.service.ts`) recalcule et
    **enregistre immédiatement** en base les quantités des créneaux non verrouillés à chaque appel de
-   `GET /api/repartition` — c'est ce qui rend les ajustements visibles par tout le foyer sans dépendre
+   `GET /api/v1/repartition` — c'est ce qui rend les ajustements visibles par tout le foyer sans dépendre
    d'un état local côté client.
 
 ## Scan d'étiquette (OCR local)

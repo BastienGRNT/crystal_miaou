@@ -247,7 +247,7 @@
 
 		loading = true;
 
-		const response = await fetch(editingFoodId ? `/api/foods/${editingFoodId}` : '/api/foods', {
+		const response = await fetch(editingFoodId ? `/api/v1/foods/${editingFoodId}` : '/api/v1/foods', {
 			method: editingFoodId ? 'PATCH' : 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(input)
@@ -269,7 +269,7 @@
 	async function handleDelete(food: FoodRecord) {
 		if (!confirm(`Supprimer "${food.name}" ?`)) return;
 
-		await fetch(`/api/foods/${food.id}`, { method: 'DELETE' });
+		await fetch(`/api/v1/foods/${food.id}`, { method: 'DELETE' });
 		await invalidateAll();
 	}
 </script>

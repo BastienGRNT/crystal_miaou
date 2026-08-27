@@ -1,5 +1,5 @@
 // Miroir de app/src/lib/domain/analyse.calc.ts + server/services/analyse.service.ts — forme exacte
-// de GET /api/analyse.
+// de GET /api/v1/analyse.
 
 import type { RepartitionFoodType } from './repartition';
 

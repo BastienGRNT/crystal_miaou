@@ -9,7 +9,7 @@ interface CatRecord {
 const DAYS_DEFAUT = 14;
 
 export const load: PageServerLoad = async ({ fetch, url }) => {
-	const catsResponse = await fetch('/api/cats');
+	const catsResponse = await fetch('/api/v1/cats');
 	const { cats } = (await catsResponse.json()) as { cats: CatRecord[] };
 
 	if (cats.length === 0) {
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 	const requestedDays = Number(url.searchParams.get('days'));
 	const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : DAYS_DEFAUT;
 
-	const analyseResponse = await fetch(`/api/analyse?catId=${activeCatId}&days=${days}`);
+	const analyseResponse = await fetch(`/api/v1/analyse?catId=${activeCatId}&days=${days}`);
 	const body = await analyseResponse.json();
 
 	let analyse: AnalyseOkResponse | null = null;

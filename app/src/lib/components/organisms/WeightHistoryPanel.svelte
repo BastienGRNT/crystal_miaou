@@ -39,7 +39,7 @@
 
 	async function load() {
 		loading = true;
-		const response = await fetch(`/api/cats/${catId}/weight-logs`);
+		const response = await fetch(`/api/v1/cats/${catId}/weight-logs`);
 		if (response.ok) {
 			const body = await response.json();
 			historique = body.historique;
@@ -63,7 +63,7 @@
 		}
 
 		saving = true;
-		const response = await fetch(`/api/cats/${catId}/weight-logs`, {
+		const response = await fetch(`/api/v1/cats/${catId}/weight-logs`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ weightKg: parsed, recordedAt })

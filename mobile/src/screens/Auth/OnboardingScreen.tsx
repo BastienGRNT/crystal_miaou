@@ -61,7 +61,7 @@ export function OnboardingScreen({ onCreated }: { onCreated: () => void }) {
 
 		setLoading(true);
 		try {
-			await apiPost<{ cat: Cat }>('/api/cats', input);
+			await apiPost<{ cat: Cat }>('/api/v1/cats', input);
 			await queryClient.invalidateQueries({ queryKey: ['cats'] });
 			onCreated();
 		} catch (err) {

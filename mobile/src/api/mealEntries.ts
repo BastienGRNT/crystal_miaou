@@ -5,7 +5,7 @@ import { apiDelete, apiGet, apiPost } from './client';
 export function usePlannedMealEntries(catId: string | undefined, date: string | undefined) {
 	return useQuery({
 		queryKey: ['mealEntries', catId, date],
-		queryFn: () => apiGet<{ mealEntries: MealEntry[] }>('/api/meal-entries', { catId, date }).then((res) => res.mealEntries),
+		queryFn: () => apiGet<{ mealEntries: MealEntry[] }>('/api/v1/meal-entries', { catId, date }).then((res) => res.mealEntries),
 		enabled: catId !== undefined && date !== undefined
 	});
 }
@@ -13,7 +13,7 @@ export function usePlannedMealEntries(catId: string | undefined, date: string | 
 export function useCreateMealEntry() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (input: MealEntryInput) => apiPost<{ mealEntry: MealEntry }>('/api/meal-entries', input),
+		mutationFn: (input: MealEntryInput) => apiPost<{ mealEntry: MealEntry }>('/api/v1/meal-entries', input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['mealEntries'] });
 			queryClient.invalidateQueries({ queryKey: ['repartition'] });
@@ -24,7 +24,7 @@ export function useCreateMealEntry() {
 export function useDeleteMealEntry() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => apiDelete(`/api/meal-entries/${id}`),
+		mutationFn: (id: string) => apiDelete(`/api/v1/meal-entries/${id}`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['mealEntries'] });
 			queryClient.invalidateQueries({ queryKey: ['repartition'] });

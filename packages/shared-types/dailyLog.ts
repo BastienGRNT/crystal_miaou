@@ -1,6 +1,6 @@
-// Miroir de app/src/lib/server/services/dailyLog.service.ts — forme exacte de GET /api/daily-log
+// Miroir de app/src/lib/server/services/dailyLog.service.ts — forme exacte de GET /api/v1/daily-log
 // (lecture seule d'un jour passé : n'affiche que ce qui a réellement été enregistré, ne génère ni ne
-// persiste rien, contrairement à GET /api/repartition réservé au jour courant).
+// persiste rien, contrairement à GET /api/v1/repartition réservé au jour courant).
 
 import type { RepartitionFoodType, DistributionMode, RationResume } from './repartition';
 

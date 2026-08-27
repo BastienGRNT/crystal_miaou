@@ -22,7 +22,7 @@ function toNullableNumber(value: string | null): number | null {
 /** Drizzle renvoie les colonnes `numeric` sous forme de string (précision exacte) — converties en
  * number ici pour que l'API tienne son contrat de type vis-à-vis des clients JSON stricts (mobile
  * Dart), le web JS ne le remarquant pas mais un `as num` Dart plante (même bug déjà corrigé sur
- * `GET /api/cats`, cf. `cat.service.ts`). */
+ * `GET /api/v1/cats`, cf. `cat.service.ts`). */
 interface NumericFieldsOverride {
 	emKcal100g: number | null;
 	packageSizeG: number | null;

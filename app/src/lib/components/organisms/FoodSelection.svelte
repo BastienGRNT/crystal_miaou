@@ -81,7 +81,7 @@
 		if (!planId) return;
 
 		routineLoading = true;
-		await fetch(`/api/daily-plans/${planId}/activate`, { method: 'POST' });
+		await fetch(`/api/v1/daily-plans/${planId}/activate`, { method: 'POST' });
 		routineLoading = false;
 		await invalidateAll();
 	}
@@ -98,7 +98,7 @@
 
 		loading = true;
 
-		const response = await fetch(`/api/cats/${cat.id}`, {
+		const response = await fetch(`/api/v1/cats/${cat.id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({

@@ -31,7 +31,7 @@
 	async function load() {
 		loading = true;
 		loadError = null;
-		const response = await fetch(`/api/cats/${catId}/members`);
+		const response = await fetch(`/api/v1/cats/${catId}/members`);
 		if (response.ok) {
 			const body = await response.json();
 			members = body.members;
@@ -55,7 +55,7 @@
 		}
 
 		inviting = true;
-		const response = await fetch(`/api/cats/${catId}/members`, {
+		const response = await fetch(`/api/v1/cats/${catId}/members`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ email })
@@ -86,7 +86,7 @@
 		removingId = member.membershipId;
 		removeError = null;
 
-		const response = await fetch(`/api/cats/${catId}/members/${member.membershipId}`, { method: 'DELETE' });
+		const response = await fetch(`/api/v1/cats/${catId}/members/${member.membershipId}`, { method: 'DELETE' });
 		removingId = null;
 
 		if (!response.ok) {

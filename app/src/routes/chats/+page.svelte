@@ -107,7 +107,7 @@
 		derAjustementSavingCatId = catId;
 		derAjustementErrorCatId = null;
 
-		const response = await fetch(`/api/cats/${catId}`, {
+		const response = await fetch(`/api/v1/cats/${catId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ derAjustementPct: value })
@@ -168,7 +168,7 @@
 
 		loading = true;
 
-		const response = await fetch(`/api/cats/${editingCatId}`, {
+		const response = await fetch(`/api/v1/cats/${editingCatId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(input)

@@ -81,6 +81,18 @@ pipeline de déploiement — pas nécessaire si `app/static/tessdata/` est déj�
 | `npm run db:studio`   | Ouvre Drizzle Studio                               |
 | `npm run setup:ocr`   | Télécharge les données de langue OCR (une fois)    |
 
+## Versionnage de l'API
+
+Toutes les routes métier sont exposées sous `/api/v1/...` (ex. `GET /api/v1/cats`,
+`GET /api/v1/repartition`) — web et mobile appellent les deux le même préfixe. Seul
+`/api/auth/**` (Better Auth) reste hors versionnage, car c'est un point de montage technique
+et non une route métier de l'app.
+
+Une nouvelle version (`v2`) n'est introduite qu'en cas de changement cassant du contrat d'une
+route existante ; ajouter un champ ou un endpoint ne le justifie pas. `v1` continue d'être servi
+tant qu'une version publiée de l'app mobile peut encore en dépendre. Détail complet et rationale
+dans [`CLAUDE.md`](./CLAUDE.md#versionnage-de-lapi).
+
 ## App mobile Android
 
 Voir [`mobile/README.md`](./mobile/README.md) pour builder l'APK. En bref : app React Native

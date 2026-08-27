@@ -1,4 +1,4 @@
-// Miroir de app/src/lib/domain/ocr.calc.ts — forme exacte de POST /api/foods/scan. Résultat toujours
+// Miroir de app/src/lib/domain/ocr.calc.ts — forme exacte de POST /api/v1/foods/scan. Résultat toujours
 // une pré-saisie : une étape de correction manuelle est obligatoire avant sauvegarde (CLAUDE.md règle 8).
 
 import type { FoodLegalStatus, FoodType } from './food';

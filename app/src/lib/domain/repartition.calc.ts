@@ -451,7 +451,7 @@ function appliquerCorrectionProportionnelle(
  * près. Jamais 0 tant que `quantiteG` était positive (au moins 1 dose), pour ne pas faire disparaître
  * silencieusement un repas voulu. Seule source de vérité pour cette règle : utilisée à la fois par le
  * moteur de répartition du jour (`alignerDosesDistributeur`) et par le service d'ajustement manuel d'un
- * créneau (`mealEntry.service.ts`, PATCH `/api/meal-entries/:id`) — un ajustement à la main envoyé par
+ * créneau (`mealEntry.service.ts`, PATCH `/api/v1/meal-entries/:id`) — un ajustement à la main envoyé par
  * le client (web ou mobile) doit retomber sur la même grille que le calcul automatique. */
 export function arrondirALaDose(quantiteG: number, doseG: number): number {
 	if (doseG <= 0) return quantiteG;

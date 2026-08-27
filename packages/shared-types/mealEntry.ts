@@ -1,16 +1,16 @@
 // Miroir de app/src/lib/domain/mealEntry.calc.ts + repositories/mealEntry.repository.ts.
 //
-// Utilisé par l'écran "Ajouter un repas" (ajout manuel hors routine) — GET /api/meal-entries renvoie
+// Utilisé par l'écran "Ajouter un repas" (ajout manuel hors routine) — GET /api/v1/meal-entries renvoie
 // les lignes brutes de la table `meal_entry` (colonnes `numeric` sérialisées en string par Postgres/
 // Drizzle, dates en ISO string via JSON), avec `food` imbriqué au même format brut. Le menu du jour
-// géré par la routine (écran Accueil) passe par GET /api/repartition et GET /api/daily-log, qui
+// géré par la routine (écran Accueil) passe par GET /api/v1/repartition et GET /api/v1/daily-log, qui
 // renvoient des formes déjà normalisées (voir repartition.ts, dailyLog.ts) — ne pas confondre les deux.
 
 import type { FoodType, FoodLegalStatus } from './food';
 import type { DailyPlanSlotDistributionMode, DailyPlanSlotFoodType } from './dailyPlan';
 
 /** `food` tel que renvoyé imbriqué par Drizzle sur ces endpoints précis : colonnes `numeric` encore en
- * string (pas passées par `withNumericFields`, à la différence de GET /api/foods). */
+ * string (pas passées par `withNumericFields`, à la différence de GET /api/v1/foods). */
 export interface MealEntryRawFood {
 	id: string;
 	name: string;
@@ -43,7 +43,7 @@ export interface MealEntryRawSourceSlot {
 	position: number;
 }
 
-/** Forme renvoyée par GET /api/meal-entries. */
+/** Forme renvoyée par GET /api/v1/meal-entries. */
 export interface MealEntry {
 	id: string;
 	catId: string;

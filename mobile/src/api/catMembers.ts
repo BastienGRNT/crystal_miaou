@@ -5,14 +5,14 @@ import { apiDelete, apiGet, apiPost } from './client';
 export function useCatMembers(catId: string) {
 	return useQuery({
 		queryKey: ['catMembers', catId],
-		queryFn: () => apiGet<{ members: CatMember[] }>(`/api/cats/${catId}/members`).then((res) => res.members)
+		queryFn: () => apiGet<{ members: CatMember[] }>(`/api/v1/cats/${catId}/members`).then((res) => res.members)
 	});
 }
 
 export function useAddCatMember(catId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (email: string) => apiPost<{ member: CatMember }>(`/api/cats/${catId}/members`, { email }),
+		mutationFn: (email: string) => apiPost<{ member: CatMember }>(`/api/v1/cats/${catId}/members`, { email }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['catMembers', catId] });
 		}
@@ -22,7 +22,7 @@ export function useAddCatMember(catId: string) {
 export function useRemoveCatMember(catId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (membershipId: string) => apiDelete(`/api/cats/${catId}/members/${membershipId}`),
+		mutationFn: (membershipId: string) => apiDelete(`/api/v1/cats/${catId}/members/${membershipId}`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['catMembers', catId] });
 		}

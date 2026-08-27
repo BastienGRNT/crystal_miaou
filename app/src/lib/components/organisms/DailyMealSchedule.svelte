@@ -112,7 +112,7 @@
 		resetting = true;
 		resetError = null;
 
-		const response = await fetch('/api/repartition', {
+		const response = await fetch('/api/v1/repartition', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ catId, date })
@@ -197,7 +197,7 @@
 		pendingId = id;
 		actionError = null;
 
-		const response = await fetch(`/api/meal-entries/${id}`, {
+		const response = await fetch(`/api/v1/meal-entries/${id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)

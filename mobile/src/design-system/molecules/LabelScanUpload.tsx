@@ -31,7 +31,7 @@ export function LabelScanUpload({ onScanned }: LabelScanUploadProps) {
 			// @ts-expect-error -- FormData en React Native attend cette forme {uri, name, type}, pas un Blob.
 			formData.append('image', { uri: asset.uri, name: asset.fileName ?? 'label.jpg', type: asset.mimeType ?? 'image/jpeg' });
 
-			const scanResult = await apiPostMultipart<LabelScanResponse>('/api/foods/scan', formData);
+			const scanResult = await apiPostMultipart<LabelScanResponse>('/api/v1/foods/scan', formData);
 			onScanned(scanResult);
 		} catch (err) {
 			setError(err instanceof ApiError ? err.message : "Échec de la lecture de l'image.");

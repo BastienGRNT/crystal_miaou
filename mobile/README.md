@@ -58,7 +58,7 @@ quantité/kcal/dose à partir de données brutes — ces valeurs sont toujours d
 - ✅ Accueil / menu du jour : score, résumé, timeline des repas, ajustement slider, sélection
   d'aliments actifs, détail du calcul, historique des jours passés
 - ✅ Mes chats : profils, ajustement DER rapide, modale d'édition, suivi de poids, foyer multi-user
-- ✅ Aliments : CRUD, filtre par type, scan d'étiquette OCR (caméra/galerie → `/api/foods/scan`,
+- ✅ Aliments : CRUD, filtre par type, scan d'étiquette OCR (caméra/galerie → `/api/v1/foods/scan`,
   correction manuelle obligatoire avant sauvegarde)
 - ✅ Analyse : sélecteur chat/période, graphique barres, stats de conformité
 - ✅ Routines : CRUD journées type + activation
@@ -71,5 +71,5 @@ Simplification volontaire par rapport au web : le formulaire Aliments n'affiche 
 l'énergie (Atwater/NRC2006) pendant la saisie — le web le calcule côté client en important directement
 `resolveFoodEnergyValues` (même runtime JS), ce que le mobile ne peut pas faire sans dupliquer la
 formule (CLAUDE.md règle 9). Les badges "EM estimée"/"Glucides estimés" restent visibles une fois
-l'aliment enregistré, comme sur la liste. Un futur endpoint `/api/foods/preview` lèverait cette
+l'aliment enregistré, comme sur la liste. Un futur endpoint `/api/v1/foods/preview` lèverait cette
 limite pour les deux clients si besoin.

@@ -1,5 +1,5 @@
 // Miroir de app/src/lib/domain/repartition.calc.ts + server/services/repartition.service.ts — forme
-// exacte de GET/POST /api/repartition (menu du jour courant : calcule et persiste les quantités non
+// exacte de GET/POST /api/v1/repartition (menu du jour courant : calcule et persiste les quantités non
 // verrouillées).
 
 import type { StatusParNutriment, ScoreRation } from './nutrition';
@@ -27,8 +27,8 @@ export interface RationResume {
 	sousLeRER: boolean;
 	glucidesParAliment: GlucidesParAliment[];
 	fiabiliteParAliment: FiabiliteAliment[];
-	/** Absent de la réponse de GET /api/daily-log (jours passés) — présent uniquement sur
-	 * GET/POST /api/repartition (jour courant). */
+	/** Absent de la réponse de GET /api/v1/daily-log (jours passés) — présent uniquement sur
+	 * GET/POST /api/v1/repartition (jour courant). */
 	score?: ScoreRation;
 }
 

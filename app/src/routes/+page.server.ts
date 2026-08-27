@@ -25,7 +25,7 @@ interface DailyPlanRecord {
 }
 
 export const load: PageServerLoad = async ({ fetch, url }) => {
-	const catsResponse = await fetch('/api/cats');
+	const catsResponse = await fetch('/api/v1/cats');
 	const { cats } = (await catsResponse.json()) as { cats: CatRecord[] };
 
 	const today = todayIsoDate();
@@ -57,8 +57,8 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 	const isToday = date === today;
 
 	const [foodsResponse, dailyPlansResponse] = await Promise.all([
-		fetch('/api/foods'),
-		fetch(`/api/daily-plans?catId=${activeCatId}`)
+		fetch('/api/v1/foods'),
+		fetch(`/api/v1/daily-plans?catId=${activeCatId}`)
 	]);
 
 	const { foods } = await foodsResponse.json();
@@ -74,7 +74,7 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 
 	if (isToday) {
 		if (hasActiveFood && hasActiveRoutine) {
-			const repartitionResponse = await fetch(`/api/repartition?catId=${activeCatId}&date=${date}`);
+			const repartitionResponse = await fetch(`/api/v1/repartition?catId=${activeCatId}&date=${date}`);
 			const body = await repartitionResponse.json();
 			if (repartitionResponse.ok) {
 				repartition = body;
@@ -83,7 +83,7 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 			}
 		}
 	} else {
-		const dailyLogResponse = await fetch(`/api/daily-log?catId=${activeCatId}&date=${date}`);
+		const dailyLogResponse = await fetch(`/api/v1/daily-log?catId=${activeCatId}&date=${date}`);
 		const body = await dailyLogResponse.json();
 		if (dailyLogResponse.ok) {
 			dailyLog = body;

@@ -3,7 +3,7 @@
 export type FoodType = 'croquette' | 'patee' | 'friandise';
 export type FoodLegalStatus = 'complet' | 'complementaire';
 
-/** Forme renvoyée par GET/POST/PATCH /api/foods (withEmSuspecte + withNumericFields). */
+/** Forme renvoyée par GET/POST/PATCH /api/v1/foods (withEmSuspecte + withNumericFields). */
 export interface Food {
 	id: string;
 	name: string;

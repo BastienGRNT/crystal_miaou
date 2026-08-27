@@ -10,16 +10,16 @@ interface CatsResponse {
 export function useCats() {
 	return useQuery({
 		queryKey: ['cats'],
-		queryFn: () => apiGet<CatsResponse>('/api/cats')
+		queryFn: () => apiGet<CatsResponse>('/api/v1/cats')
 	});
 }
 
 /** Couvre aussi bien la sélection d'aliments actifs (FoodSelection) que l'ajustement manuel du nombre
- * de paquets de pâtée (RationDetails) — les deux passent par le même endpoint `PATCH /api/cats/:id`. */
+ * de paquets de pâtée (RationDetails) — les deux passent par le même endpoint `PATCH /api/v1/cats/:id`. */
 export function usePatchCatFoodSelection(catId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (input: Partial<CatFoodSelectionInput>) => apiPatch<{ cat: Cat }>(`/api/cats/${catId}`, input),
+		mutationFn: (input: Partial<CatFoodSelectionInput>) => apiPatch<{ cat: Cat }>(`/api/v1/cats/${catId}`, input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['cats'] });
 			queryClient.invalidateQueries({ queryKey: ['repartition'] });
@@ -30,7 +30,7 @@ export function usePatchCatFoodSelection(catId: string) {
 export function usePatchCatProfile(catId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (input: CatProfileInput) => apiPatch<{ cat: Cat }>(`/api/cats/${catId}`, input),
+		mutationFn: (input: CatProfileInput) => apiPatch<{ cat: Cat }>(`/api/v1/cats/${catId}`, input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['cats'] });
 		}
@@ -41,7 +41,7 @@ export function usePatchCatDerAjustement(catId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (derAjustementPct: CatDerAjustementPct) =>
-			apiPatch<{ cat: Cat }>(`/api/cats/${catId}`, { derAjustementPct }),
+			apiPatch<{ cat: Cat }>(`/api/v1/cats/${catId}`, { derAjustementPct }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['cats'] });
 		}

@@ -83,7 +83,7 @@
 
 		loading = true;
 
-		const response = await fetch('/api/cats', {
+		const response = await fetch('/api/v1/cats', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(input)

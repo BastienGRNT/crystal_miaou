@@ -13,8 +13,8 @@ export interface DailyPlanSlot {
 	position: number;
 }
 
-/** Forme renvoyée par GET/POST/PATCH /api/daily-plans (routine + créneaux, sans quantité — calculée
- * chaque jour par GET /api/repartition, jamais stockée ici). */
+/** Forme renvoyée par GET/POST/PATCH /api/v1/daily-plans (routine + créneaux, sans quantité — calculée
+ * chaque jour par GET /api/v1/repartition, jamais stockée ici). */
 export interface DailyPlan {
 	id: string;
 	catId: string;

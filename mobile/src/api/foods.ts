@@ -5,7 +5,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from './client';
 export function useFoods(type?: FoodType) {
 	return useQuery({
 		queryKey: ['foods', type ?? 'all'],
-		queryFn: () => apiGet<{ foods: Food[] }>('/api/foods', { type }).then((res) => res.foods)
+		queryFn: () => apiGet<{ foods: Food[] }>('/api/v1/foods', { type }).then((res) => res.foods)
 	});
 }
 
@@ -17,7 +17,7 @@ function useInvalidateFoods() {
 export function useCreateFood() {
 	const invalidate = useInvalidateFoods();
 	return useMutation({
-		mutationFn: (input: FoodInput) => apiPost<{ food: Food }>('/api/foods', input),
+		mutationFn: (input: FoodInput) => apiPost<{ food: Food }>('/api/v1/foods', input),
 		onSuccess: invalidate
 	});
 }
@@ -25,7 +25,7 @@ export function useCreateFood() {
 export function useUpdateFood(id: string) {
 	const invalidate = useInvalidateFoods();
 	return useMutation({
-		mutationFn: (input: FoodInput) => apiPatch<{ food: Food }>(`/api/foods/${id}`, input),
+		mutationFn: (input: FoodInput) => apiPatch<{ food: Food }>(`/api/v1/foods/${id}`, input),
 		onSuccess: invalidate
 	});
 }
@@ -33,7 +33,7 @@ export function useUpdateFood(id: string) {
 export function useDeleteFood() {
 	const invalidate = useInvalidateFoods();
 	return useMutation({
-		mutationFn: (id: string) => apiDelete(`/api/foods/${id}`),
+		mutationFn: (id: string) => apiDelete(`/api/v1/foods/${id}`),
 		onSuccess: invalidate
 	});
 }

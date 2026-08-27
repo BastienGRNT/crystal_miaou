@@ -4,13 +4,13 @@ export type CatSex = 'male' | 'femelle';
 export type CatActivityLevel = 'faible' | 'modere' | 'eleve';
 export type CatSpecialCondition = 'aucune' | 'gestation' | 'croissance' | 'surpoids';
 
-/** Forme renvoyée par GET /api/cats (et POST/PATCH /api/cats/:id, sans `ageMonths`). */
+/** Forme renvoyée par GET /api/v1/cats (et POST/PATCH /api/v1/cats/:id, sans `ageMonths`). */
 export interface Cat {
 	id: string;
 	name: string;
 	weightKg: number;
 	birthDate: string | null;
-	/** Calculé par l'API (CLAUDE.md règle 9) — jamais recalculé côté client. Présent sur GET /api/cats
+	/** Calculé par l'API (CLAUDE.md règle 9) — jamais recalculé côté client. Présent sur GET /api/v1/cats
 	 * uniquement (absent des réponses brutes de POST/PATCH). */
 	ageMonths?: number | null;
 	sex: CatSex;
@@ -59,7 +59,7 @@ export interface CatFoodSelectionInput {
 }
 
 /** Valeurs fermées d'ajustement DER (specs/nutrition-spec.md section 5) — renvoyées par
- * GET /api/cats en tant que `derAjustementPctValeurs`, jamais recopiées en dur côté client. */
+ * GET /api/v1/cats en tant que `derAjustementPctValeurs`, jamais recopiées en dur côté client. */
 export type CatDerAjustementPct = -10 | -5 | 0 | 5 | 10;
 
 export interface CatMember {

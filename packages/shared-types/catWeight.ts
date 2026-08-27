@@ -1,5 +1,5 @@
 // Miroir de app/src/lib/domain/catWeight.calc.ts + server/services/catWeight.service.ts — forme
-// exacte de GET /api/cats/:id/weight-logs.
+// exacte de GET /api/v1/cats/:id/weight-logs.
 
 export type TendancePoids = 'HAUSSE' | 'BAISSE' | 'STABLE';
 

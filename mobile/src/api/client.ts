@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
 // Équivalent TS de flutter_mobile/lib/core/api_client.dart — client HTTP unique de l'app, aucune
-// logique métier ici, uniquement des appels REST vers `/api/...` avec le token bearer Better Auth
+// logique métier ici, uniquement des appels REST vers `/api/v1/...` avec le token bearer Better Auth
 // (CLAUDE.md : mobile = "client pur de l'API de app/"). Base URL résolue par app.config.ts (extra.apiBaseUrl).
 
 const API_BASE_URL: string = Constants.expoConfig?.extra?.apiBaseUrl ?? 'http://10.0.2.2:5173';
