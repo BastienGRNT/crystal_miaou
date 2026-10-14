@@ -1,0 +1,92 @@
+# ──────────────────────────────────────────────────────────────────────
+# Généré par Forge pour le projet « crystal-miaou ».
+# forge-workflow-version: 3
+# S'exécute sur le runner self-hosted du CT 501 (label « crystal-miaou »).
+# Configuration : variables de dépôt FORGE_* et secret ENV_FILE, modifiables
+# depuis Forge. Forge ne réécrit ce fichier que sur « Mettre à niveau le
+# projet », après confirmation, et seulement s'il n'a pas été modifié à la main.
+# Aucune commande de ce workflow ne supprime de volume Docker.
+# Si FORGE_DB_SERVICE est défini, la base est sauvegardée avant chaque
+# déploiement dans /home/github/forge-backups (10 dernières conservées).
+# ──────────────────────────────────────────────────────────────────────
+name: Forge · Déploiement
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: forge-deploy-crystal-miaou
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Déployer crystal-miaou
+    runs-on: [self-hosted, crystal-miaou]
+    timeout-minutes: 30
+    env:
+      FORGE_COMPOSE_FILE: ${{ vars.FORGE_COMPOSE_FILE }}
+      FORGE_WORKDIR: ${{ vars.FORGE_WORKDIR }}
+      FORGE_POST_DEPLOY: ${{ vars.FORGE_POST_DEPLOY }}
+      FORGE_APP_SERVICE: ${{ vars.FORGE_APP_SERVICE }}
+      FORGE_APP_PORT: ${{ vars.FORGE_APP_PORT }}
+      FORGE_DB_SERVICE: ${{ vars.FORGE_DB_SERVICE }}
+      FORGE_DB_KIND: ${{ vars.FORGE_DB_KIND }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7
+
+      - name: Écrire le fichier .env
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          set -euo pipefail
+          cd "${FORGE_WORKDIR:-.}"
+          umask 077
+          printf '%s' "$ENV_FILE" > .env
+
+      - name: Sauvegarder la base (avant déploiement)
+        if: ${{ vars.FORGE_DB_SERVICE != '' }}
+        run: |
+          set -euo pipefail
+          cd "${FORGE_WORKDIR:-.}"
+          if [ -z "$(docker compose -f "$FORGE_COMPOSE_FILE" ps --status running -q "$FORGE_DB_SERVICE" 2>/dev/null)" ]; then
+            echo "Base « $FORGE_DB_SERVICE » pas encore démarrée : rien à sauvegarder."
+            exit 0
+          fi
+          case "$FORGE_DB_KIND" in
+            postgres) SCRIPT='U="${POSTGRES_USER:-postgres}"; D="${POSTGRES_DB:-$U}"; exec pg_dump -U "$U" --clean --if-exists --no-owner --no-privileges "$D"' ;;
+            mysql|mariadb) SCRIPT='U=root; P="${MARIADB_ROOT_PASSWORD:-$MYSQL_ROOT_PASSWORD}"; if [ -z "$P" ]; then U="${MARIADB_USER:-$MYSQL_USER}"; P="${MARIADB_PASSWORD:-$MYSQL_PASSWORD}"; fi; D="${MARIADB_DATABASE:-$MYSQL_DATABASE}"; export MYSQL_PWD="$P"; C="$(command -v mariadb || command -v mysql)"; DUMP="$(command -v mariadb-dump || command -v mysqldump)"; exec "$DUMP" -u"$U" --single-transaction --routines --triggers --add-drop-table "$D"' ;;
+            *) echo "Type de base « $FORGE_DB_KIND » non pris en charge : sauvegarde ignorée."; exit 0 ;;
+          esac
+          mkdir -p "/home/github/forge-backups/crystal-miaou"
+          umask 077
+          FILE="/home/github/forge-backups/crystal-miaou/$(date -u +%Y%m%d-%H%M%S)-pre-deploy-${GITHUB_SHA::7}.sql.gz"
+          docker compose -f "$FORGE_COMPOSE_FILE" exec -T "$FORGE_DB_SERVICE" sh -c "$SCRIPT" | gzip > "$FILE.part"
+          mv "$FILE.part" "$FILE"
+          echo "Sauvegarde : $FILE ($(du -h "$FILE" | cut -f1))"
+          ls -1t "/home/github/forge-backups/crystal-miaou"/*-pre-deploy-*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm -f --
+
+      - name: Construire et démarrer
+        run: |
+          set -euo pipefail
+          cd "${FORGE_WORKDIR:-.}"
+          docker compose -f "$FORGE_COMPOSE_FILE" up -d --build --remove-orphans
+
+      - name: Post-déploiement
+        if: ${{ vars.FORGE_POST_DEPLOY != '' }}
+        run: |
+          set -euo pipefail
+          cd "${FORGE_WORKDIR:-.}"
+          docker compose -f "$FORGE_COMPOSE_FILE" exec -T "${FORGE_APP_SERVICE:-app}" sh -c "$FORGE_POST_DEPLOY"
+
+      - name: Nettoyer les images inutilisées
+        if: always()
+        run: docker image prune -f
