@@ -57,3 +57,9 @@ mobile/ios/
 mobile/.env
 mobile/*.jks
 mobile/*.keystore
+# Artefacts Flutter générés si on lance flutter dans mobile/ (jamais versionnés)
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/*.iml
